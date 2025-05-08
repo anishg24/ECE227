@@ -1,0 +1,19 @@
+[project]
+name = "ECE227"
+version = "0.0.1"
+description = "Final network project for UCSD ECE 227"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "astroquery>=0.4.10",
+    "jupyter>=1.1.1",
+    "marimo>=0.12.9",
+    "matplotlib>=3.10.1",
+    "networkx>=3.4.2",
+    "nx-cugraph-cu12>=25.4.0; os_name == 'posix'",
+    "pandas>=2.2.3",
+    "scipy>=1.15.2",
+]
+
+[[tool.uv.index]]
+url = "https://pypi.nvidia.com/"
