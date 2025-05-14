@@ -25,6 +25,7 @@ class GraphGenerator:
             from_node, to_node = line.split(separator)
             edges.append((from_node, to_node))
             nodes.add(from_node)
+            nodes.add(to_node)
 
         return {
             "nodes": nodes,

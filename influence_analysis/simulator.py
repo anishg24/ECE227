@@ -1,10 +1,12 @@
 import networkx as nx
 from random import sample
 from propogation import PropagationAlgorithm
+from influence_algorithm import InfluenceAlgorithm
 
 class Simulator:
-    def __init__(self, graph: nx.Graph, prop_alg: PropagationAlgorithm):
+    def __init__(self, graph: nx.Graph, influence_alg: InfluenceAlgorithm, prop_alg: PropagationAlgorithm):
         self.graph: nx.Graph = graph
+        self.influence_alg: InfluenceAlgorithm = influence_alg
         self.prop_alg: PropagationAlgorithm = prop_alg
 
         def find_active(node: str) -> bool:
@@ -17,11 +19,14 @@ class Simulator:
         self.inactive_nodes_view = nx.subgraph_view(self.graph, filter_node=find_inactive)
 
     def timestep(self) -> None:
-        for node in self.graph.nodes:
-            if self.graph.nodes[node]["active"]:
+        for node, attr in self.graph.nodes(data=True):
+            if attr["active"]:
                 for neighbor in self.graph.neighbors(node):
                     if not self.graph.nodes[neighbor]["active"]:
                         self.graph.nodes[neighbor]["active"] = self.prop_alg.propagate()
+
+    def seed(self) -> None:
+        self.seed_nodes(self.influence_alg.get_seed_nodes())
 
     def seed_node(self, node: str) -> None:
         self.graph.nodes[node]["active"] = True
@@ -43,34 +48,39 @@ class Simulator:
         return list(self.active_nodes_view.nodes())
 
     def get_num_active_nodes(self) -> int:
-        return len(self.get_active_nodes())
+        return self.active_nodes_view.number_of_nodes()
 
     def get_inactive_nodes(self) -> list[str]:
         return list(self.inactive_nodes_view.nodes())
 
     def get_num_inactive_nodes(self) -> int:
-        return len(self.get_inactive_nodes())
+        return self.inactive_nodes_view.number_of_nodes()
 
 if __name__ == '__main__':
     from graphs import GraphGenerator
     from pathlib import Path
     from propogation import IndependentCascadeModel
+    from influence_algorithm import DegreeCentralityAlgorithm
     from tqdm import tqdm
 
-    graph = GraphGenerator.get_collab_graph(Path("../data/collab.txt"))
+    graph = GraphGenerator.get_social_graph(Path("../data/social.txt"))
     prob = 0.3
     num_timestep = 1000
+    num_seeds = 10
+    influence_algorithm = DegreeCentralityAlgorithm(graph, num_seeds)
     prop_alg = IndependentCascadeModel(prob)
-    simulator = Simulator(graph, prop_alg)
+    simulator = Simulator(graph, influence_algorithm, prop_alg)
 
-    simulator.seed_node('3466') # Seed one node manually
-    print(f"Seeded Nodes: {simulator.seed_random_nodes(5)}")
+    #simulator.seed_node('3466') # Seed one node manually
+    #simulator.seed_random_nodes(num_seeds) # Seed 5 random nodes
+    simulator.seed() # Seed according to the influence algorithm
+    print(f"Seeded Nodes: {simulator.get_active_nodes()}")
 
     print(f"Starting Simulation")
     for _ in tqdm(range(num_timestep), desc="Simulation Timestep"):
         simulator.timestep()
-    print(f"Simulation Complete!")
+    print(f"Simulation Complete!\n")
 
-    print("Post-Simulation Results")
+    print(f"Post-Simulation Results after {num_timestep} time steps")
     print(f"{simulator.get_num_active_nodes()} nodes activated: {simulator.get_active_nodes()}")
     print(f"Percent Active: {(simulator.get_num_active_nodes()/graph.number_of_nodes())*100:.2f}%")

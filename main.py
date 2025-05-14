@@ -2,4 +2,5 @@ from influence_analysis.graphs import GraphGenerator
 
 
 if __name__ == '__main__':
-    print(GraphGenerator.get_comm_graph().number_of_nodes())
+    graph = GraphGenerator.get_social_graph()
+    print(graph.nodes['214328887']['active'])
