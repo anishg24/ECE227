@@ -13,6 +13,7 @@ dependencies = [
     "nx-cugraph-cu12>=25.4.0; os_name == 'posix'",
     "pandas>=2.2.3",
     "scipy>=1.15.2",
+    "tqdm>=4.67.1",
 ]
 
 [[tool.uv.index]]
