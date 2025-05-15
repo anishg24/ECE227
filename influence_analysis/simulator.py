@@ -63,7 +63,7 @@ if __name__ == '__main__':
     from influence_algorithm import DegreeCentralityAlgorithm
     from tqdm import tqdm
 
-    graph = GraphGenerator.get_social_graph(Path("../data/social.txt"))
+    graph = GraphGenerator.get_collab_graph(Path("../data/collab.txt"))
     prob = 0.3
     num_timestep = 1000
     num_seeds = 10
@@ -76,11 +76,16 @@ if __name__ == '__main__':
     simulator.seed() # Seed according to the influence algorithm
     print(f"Seeded Nodes: {simulator.get_active_nodes()}")
 
-    print(f"Starting Simulation")
-    for _ in tqdm(range(num_timestep), desc="Simulation Timestep"):
-        simulator.timestep()
-    print(f"Simulation Complete!\n")
+    with tqdm(range(num_timestep), desc="Simulation Timestep") as t:
+        print(f"Starting Simulation")
+        for _ in t:
+            simulator.timestep()
+        print(f"Simulation Complete!")
+        elapsed = t.format_dict['elapsed']
+        print(f"Time: {elapsed:.4f} seconds ({elapsed/num_timestep:.4f} second per timestep)")
+        print()
 
     print(f"Post-Simulation Results after {num_timestep} time steps")
-    print(f"{simulator.get_num_active_nodes()} nodes activated: {simulator.get_active_nodes()}")
+    print(f"{simulator.get_num_active_nodes()} nodes activated")
     print(f"Percent Active: {(simulator.get_num_active_nodes()/graph.number_of_nodes())*100:.2f}%")
+    print(simulator.get_active_nodes())
