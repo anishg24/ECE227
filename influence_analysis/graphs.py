@@ -44,7 +44,7 @@ class GraphGenerator:
         :rtype: nx.Graph
         """
         graph = nx.DiGraph() if directed else nx.Graph()
-        graph.add_nodes_from(data["nodes"], active=False)
+        graph.add_nodes_from(data["nodes"], active=False, already_spread=False)
         graph.add_edges_from(data["edges"])
         return graph
 
