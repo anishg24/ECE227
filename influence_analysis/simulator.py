@@ -1,13 +1,18 @@
 import networkx as nx
 from random import sample
+
 from propogation import PropagationAlgorithm
 from influence_algorithm import InfluenceAlgorithm
 
 class Simulator:
+    graph: nx.Graph
+    influence_alg: InfluenceAlgorithm
+    prop_alg: PropagationAlgorithm
+
     def __init__(self, graph: nx.Graph, influence_alg: InfluenceAlgorithm, prop_alg: PropagationAlgorithm):
-        self.graph: nx.Graph = graph
-        self.influence_alg: InfluenceAlgorithm = influence_alg
-        self.prop_alg: PropagationAlgorithm = prop_alg
+        self.graph = graph
+        self.influence_alg = influence_alg
+        self.prop_alg = prop_alg
 
         def find_active(node: str) -> bool:
             return self.graph.nodes[node]["active"]
@@ -21,9 +26,7 @@ class Simulator:
     def timestep(self) -> None:
         for node, attr in self.graph.nodes(data=True):
             if attr["active"]:
-                for neighbor in self.graph.neighbors(node):
-                    if not self.graph.nodes[neighbor]["active"]:
-                        self.graph.nodes[neighbor]["active"] = self.prop_alg.propagate()
+                self.prop_alg.propagate(node, self.graph.neighbors(node))
 
     def seed(self) -> None:
         self.seed_nodes(self.influence_alg.get_seed_nodes())
@@ -68,7 +71,7 @@ if __name__ == '__main__':
     num_timestep = 1000
     num_seeds = 10
     influence_algorithm = DegreeCentralityAlgorithm(graph, num_seeds)
-    prop_alg = IndependentCascadeModel(prob)
+    prop_alg = IndependentCascadeModel(graph, prob)
     simulator = Simulator(graph, influence_algorithm, prop_alg)
 
     #simulator.seed_node('3466') # Seed one node manually
