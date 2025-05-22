@@ -15,4 +15,4 @@ if __name__ == '__main__':
         "IC_PROB": 0.05,  # default edge activation probability
     }
     ga = GeneticAlgorithm(graph, 10, GA_params)
-    print(ga.get_seed_nodes())
+    ga.get_seed_nodes()

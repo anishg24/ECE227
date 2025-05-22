@@ -5,6 +5,9 @@ from typing import List, Tuple
 import networkx as nx
 import tqdm
 
+import fast_ic as fic
+import numpy as np
+
 class InfluenceAlgorithm(ABC):
     @abstractmethod
     def get_seed_nodes(self, **kwargs) -> list[str]:
@@ -42,6 +45,13 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
             }
         else:
             self.GA_params = GA_params
+
+        edges = [
+            (int(u), int(v))   # None → use default_p
+            for u, v in self.graph.edges
+        ]
+
+        self.fG = fic.Graph(edges)
 
         # set random seed for reproducibility
         random.seed(0)
@@ -105,7 +115,6 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
             if random.random() < mut_rate:
                 chrom[i] = random.choice(nodes)
 
-
     def tournament_select(
             self,
             population: List[List[int]],
@@ -121,10 +130,10 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
     # ---------- 4.  GA main loop -----------------------------------------
     # ---------------------------------------------------------------------
 
-    def evaluate_chromosome(self, args):
+    def evaluate_chromosome(self, chrom):
         """Evaluate a single chromosome by running multiple independent cascade simulations."""
-        i, chrom = args
         total = 0
+        chrom = [int(node) for node in chrom]
         for _ in range(self.GA_params["N_SIM"]):
             total += self.independent_cascade(chrom, self.GA_params["IC_PROB"])
         return total / self.GA_params["N_SIM"]
@@ -132,7 +141,8 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
     def evaluate_population(
             self,
             population: List[List[int]],
-            num_processes: int = None
+            num_processes: int = None,
+            fast_independent_cascade: bool = True
     ) -> List[float]:
         """
         Compute fitness for every chromosome – expensive step!
@@ -144,17 +154,19 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
             num_processes: Number of processes to use for parallel evaluation. 
                           If None, uses the number of CPU cores.
         """
-        from multiprocessing import Pool
+        # from multiprocessing import Pool
 
         # Create process pool and map chromosomes to processes
-        with Pool(processes=num_processes) as pool:
-            # Pair each chromosome with its index
-            chromosome_args = list(enumerate(population))
-            # Map evaluation function across all chromosomes in parallel
-            fitness = pool.map(self.evaluate_chromosome, chromosome_args)
-
+        # with Pool(processes=num_processes) as pool:
+        #     # Pair each chromosome with its index
+        #     chromosome_args = list(enumerate(population))
+        #     # Map evaluation function across all chromosomes in parallel
+        #     fitness = pool.map(self.evaluate_chromosome, chromosome_args)
+        if fast_independent_cascade:
+            fitness = [fic.evaluate_chromosome(self.fG, [int(ch) for ch in chrom], self.GA_params["N_SIM"], self.GA_params["IC_PROB"]) for chrom in tqdm.tqdm(population, desc="Evaluating population")]
+        else:
+            fitness = [self.evaluate_chromosome(chrom) for chrom in tqdm.tqdm(population, desc="Evaluating population")]
         return fitness
-
 
     # Main genetic algorithm
     def get_seed_nodes(
@@ -169,8 +181,8 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
         """
         nodes = list(self.graph.nodes())
 
-        # ----- initialise population randomly
-        population = [random.sample(nodes, self.num_seed) for _ in range(self.GA_params["POP_SIZE"])]
+        # FIXME: initialise population randomly, this could be changed to a more effective one such as centrality based
+        population = [np.random.choice(nodes, self.num_seed, replace=False) for _ in range(self.GA_params["POP_SIZE"])]
 
         best_chrom, best_fit = None, float("-inf")
 

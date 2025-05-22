@@ -1,3 +1,4 @@
+// independent_cascade.cpp   (full, drop-in replacement)
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -6,116 +7,170 @@
 #include <vector>
 #include <tuple>
 #include <unordered_set>
+#include <algorithm>
+#include <cassert>
 
 namespace py = pybind11;
 
-/* ------------------------------------------------------------------ */
-/*  A very small adjacency-list graph                                 */
-/* ------------------------------------------------------------------ */
+/* ----------------------------------------------------------- */
+/*  Small adjacency-list graph  (no edge weights)              */
+/* ----------------------------------------------------------- */
 class Graph {
 public:
-    /*
-       edges : list[tuple(src, dst, weight | None)]
-       num_nodes is needed so we can allocate the adjacency vector once,
-       not search for the maximum id.
-    */
-    Graph(std::size_t num_nodes,
-          const std::vector<std::tuple<int, int, py::object>>& edges)
-        : adj_(num_nodes)
+    /*  Variant 1 – let the ctor deduce `num_nodes`  */
+    Graph(const std::vector<std::tuple<std::size_t,std::size_t>>& edges)
     {
-        for (const auto& e : edges) {
-            int    u = std::get<0>(e);
-            int    v = std::get<1>(e);
-            double w = std::get<2>(e).is_none()    ? -1.0
-                      : std::get<2>(e).cast<double>();
-            adj_[u].push_back({v, w});
-        }
+        std::size_t max_id = 0;
+        for (auto&& e : edges)
+            max_id = std::max({max_id,
+                               std::get<0>(e),
+                               std::get<1>(e)});
+        init(max_id + 1, edges);
     }
 
-    const std::vector<std::pair<int, double>>& neighbors(int u) const {
+    /*  Variant 2 – caller gives num_nodes explicitly  */
+    Graph(std::size_t num_nodes,
+          const std::vector<std::tuple<std::size_t,std::size_t>>& edges)
+    {
+        init(num_nodes, edges);
+    }
+
+    const std::vector<std::size_t>& neighbors(std::size_t u) const
+    {
+        if (u >= adj_.size()) return empty_;          // tolerate bad seed
         return adj_[u];
     }
 
+    std::size_t num_nodes() const { return adj_.size(); }
+
 private:
-    std::vector<std::vector<std::pair<int, double>>> adj_;
+    std::vector<std::vector<std::size_t>> adj_;
+    static inline const std::vector<std::size_t> empty_{};
+
+    void init(std::size_t num_nodes,
+              const std::vector<std::tuple<std::size_t,std::size_t>>& edges)
+    {
+        adj_.assign(num_nodes, {});          // outer vector
+        for (auto&& e : edges) {
+            std::size_t u = std::get<0>(e);
+            std::size_t v = std::get<1>(e);
+            assert(u < num_nodes && v < num_nodes);   // debug-only
+            adj_[u].push_back(v);
+        }
+    }
 };
 
-
-/* ------------------------------------------------------------------ */
-/*  Independent Cascade (one run)                                     */
-/* ------------------------------------------------------------------ */
-int independent_cascade(const Graph&              G,
-                         const std::vector<int>&   seeds,
-                         double                    default_p = 0.1)
+/* ----------------------------------------------------------- */
+/*  Independent Cascade                                       */
+/* ----------------------------------------------------------- */
+std::size_t independent_cascade(const Graph&              G,
+                                const std::vector<std::size_t>& seeds,
+                                double default_p = 0.1)
 {
     static thread_local std::mt19937 rng{std::random_device{}()};
     std::uniform_real_distribution<double> uni(0.0, 1.0);
 
-    std::unordered_set<int> active(seeds.begin(), seeds.end());
-    std::vector<int>        frontier(seeds.begin(), seeds.end());
+    const std::size_t N = G.num_nodes();
+    std::vector<uint8_t> active_bitmap(N, 0);
+    std::vector<std::size_t> frontier;
+
+    frontier.reserve(seeds.size());
+    for (auto s : seeds)
+        if (s < N && !active_bitmap[s]) {   // ignore bad or duplicate seeds
+            active_bitmap[s] = 1;
+            frontier.push_back(s);
+        }
 
     while (!frontier.empty()) {
-        std::vector<int> next;
+        std::vector<std::size_t> next;
         next.reserve(frontier.size() * 2);
 
-        for (int u : frontier) {
-            for (const auto& [v, w] : G.neighbors(u)) {
-                if (active.find(v) != active.end()) continue;
-
-                double prob = (w >= 0.0) ? w : default_p;
-                if (uni(rng) < prob) {
-                    active.insert(v);
+        for (std::size_t u : frontier) {
+            for (std::size_t v : G.neighbors(u)) {
+                if (active_bitmap[v]) continue;
+                if (uni(rng) < default_p) {
+                    active_bitmap[v] = 1;
                     next.push_back(v);
                 }
             }
         }
         frontier.swap(next);
     }
-    return static_cast<int>(active.size());
+
+    // count ones
+    return std::count(active_bitmap.begin(), active_bitmap.end(), 1);
 }
 
-/* ------------------------------------------------------------------ */
-/*  pybind11 glue                                                     */
-/* ------------------------------------------------------------------ */
+double evaluate_chromosome(const Graph&                       G,
+                           const std::vector<std::size_t>&    seeds,
+                           std::size_t                        n_sim     = 100,
+                           double                             default_p = 0.1)
+{
+    std::size_t total = 0;
+    for (std::size_t i = 0; i < n_sim; ++i)
+        total += independent_cascade(G, seeds, default_p);
+
+    return static_cast<double>(total) / static_cast<double>(n_sim);
+}
+
+/* ----------------------------------------------------------- */
+/*  pybind11 glue                                              */
+/* ----------------------------------------------------------- */
 PYBIND11_MODULE(fast_ic, m)
 {
-    m.doc() = "Fast Independent Cascade (C++/pybind11)";
+    m.doc() = "Fast Independent Cascade (robust, no edge weights)";
 
     py::class_<Graph>(m, "Graph")
-        .def(py::init<std::size_t,
-                      const std::vector<std::tuple<int,int,py::object>>&>(),
-             py::arg("num_nodes"),
+        .def(py::init<const std::vector<std::tuple<std::size_t,std::size_t>>&>(),
              py::arg("edges"),
              R"pbdoc(
-                 Lightweight adjacency-list graph.
+                 Graph(edges)
 
                  Parameters
                  ----------
-                 num_nodes : int
-                     Total number of nodes (0…num_nodes-1).
-                 edges : list[ (src, dst, weight | None) ]
-                     Directed edges.  Pass `None` if you want the
-                     default activation probability for that edge.
+                 edges : list[ (src, dst) ]
+                     Directed edges with 0-based node IDs.  The
+                     constructor infers the number of nodes automatically.
+             )pbdoc")
+        .def(py::init<std::size_t,
+                      const std::vector<std::tuple<std::size_t,std::size_t>>&>(),
+             py::arg("num_nodes"),
+             py::arg("edges"),
+             R"pbdoc(
+                 Graph(num_nodes, edges)
+
+                 Use this variant if your node IDs are a dense 0…N-1
+                 range but you want an explicit size.
              )pbdoc");
 
     m.def("independent_cascade",
           &independent_cascade,
           py::arg("graph"),
           py::arg("seeds"),
+          py::arg("default_p") = 0.1);
+
+    m.def("evaluate_chromosome",
+          &evaluate_chromosome,
+          py::arg("graph"),
+          py::arg("seeds"),
+          py::arg("n_sim")     = 100,
           py::arg("default_p") = 0.1,
           R"pbdoc(
-              One stochastic IC simulation.
+              Average cascade size over `n_sim` repetitions.
 
               Parameters
               ----------
               graph : fast_ic.Graph
               seeds : list[int]
+                  Seed set (chromosome) to evaluate.
+              n_sim : int, optional
+                  Number of stochastic simulations.  Default 100.
               default_p : float, optional
-                  Used when an edge has `weight is None`.
+                  Activation probability for every edge.
 
               Returns
               -------
-              int
-                  Total number of active nodes at cascade end.
+              float
+                  Mean number of activated nodes.
           )pbdoc");
 }
