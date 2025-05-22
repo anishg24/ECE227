@@ -12,6 +12,7 @@ dependencies = [
     "networkx>=3.4.2",
     "nx-cugraph-cu12>=25.4.0; os_name == 'posix'",
     "pandas>=2.2.3",
+    "pybind11>=2.12.0",
     "scipy>=1.15.2",
     "tqdm>=4.67.1",
 ]

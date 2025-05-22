@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import random
 from typing import List, Tuple
 import networkx as nx
+import tqdm
 
 class InfluenceAlgorithm(ABC):
     @abstractmethod
@@ -116,34 +117,56 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
         return population[best_idx][:]        # copy so we can modify later
 
 
-    random.seed(0)            # reproducibility
-
     # ---------------------------------------------------------------------
     # ---------- 4.  GA main loop -----------------------------------------
     # ---------------------------------------------------------------------
 
+    def evaluate_chromosome(self, args):
+        """Evaluate a single chromosome by running multiple independent cascade simulations."""
+        i, chrom = args
+        total = 0
+        for _ in range(self.GA_params["N_SIM"]):
+            total += self.independent_cascade(chrom, self.GA_params["IC_PROB"])
+        return total / self.GA_params["N_SIM"]
+
     def evaluate_population(
             self,
-            population: List[List[int]]
+            population: List[List[int]],
+            num_processes: int = None
     ) -> List[float]:
         """
         Compute fitness for every chromosome – expensive step!
         Uses N_SIM repeated cascades per chromosome.
+        Evaluates chromosomes in parallel using multiprocessing.
+
+        Args:
+            population: List of chromosomes to evaluate
+            num_processes: Number of processes to use for parallel evaluation. 
+                          If None, uses the number of CPU cores.
         """
-        fitness = []
-        for chrom in population:
-            total = 0
-            for _ in range(self.GA_params["N_SIM"]):
-                total += self.independent_cascade(chrom, self.GA_params["IC_PROB"])
-            fitness.append(total / self.GA_params["N_SIM"])     # average spread
+        from multiprocessing import Pool
+
+        # Create process pool and map chromosomes to processes
+        with Pool(processes=num_processes) as pool:
+            # Pair each chromosome with its index
+            chromosome_args = list(enumerate(population))
+            # Map evaluation function across all chromosomes in parallel
+            fitness = pool.map(self.evaluate_chromosome, chromosome_args)
+
         return fitness
 
 
     # Main genetic algorithm
     def get_seed_nodes(
             self,
+            num_processes: int = 4
     ) -> Tuple[List[int], float]:
-        """Run the GA and return the best seed set + its fitness."""
+        """
+        Run the GA and return the best seed set + its fitness.
+        
+        Args:
+            num_processes: Number of processes to use for parallel evaluation.
+        """
         nodes = list(self.graph.nodes())
 
         # ----- initialise population randomly
@@ -152,7 +175,7 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
         best_chrom, best_fit = None, float("-inf")
 
         for gen in range(1, self.GA_params["GENERATIONS"] + 1):
-            fitness = self.evaluate_population(population)
+            fitness = self.evaluate_population(population, num_processes=num_processes)
 
             # record global best
             gen_best_idx = max(range(self.GA_params["POP_SIZE"]), key=lambda i: fitness[i])
@@ -166,8 +189,8 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
             # ---------- create offspring until population is full
             while len(new_population) < self.GA_params["POP_SIZE"]:
                 # parent selection
-                parent1 = self.tournament_select(population, fitness, self.GA_params["TOUR_SIZE"])
-                parent2 = self.tournament_select(population, fitness, self.GA_params["TOUR_SIZE"])
+                parent1 = self.tournament_select(population, fitness)
+                parent2 = self.tournament_select(population, fitness)
 
                 # crossover (always)
                 child1, child2 = self.one_point_crossover(parent1, parent2)
