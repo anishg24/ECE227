@@ -8,7 +8,7 @@ class InfluenceAlgorithm(ABC):
         pass
 
 
-class DegreeCentralityAlgorithm(InfluenceAlgorithm, ABC):
+class DegreeCentralityAlgorithm(InfluenceAlgorithm):
     graph: nx.Graph
     seed_nodes: list[str]
 

@@ -26,11 +26,11 @@ class Simulator:
     def timestep(self, disable_multiple_activation: bool = True) -> None:
         for node, attr in self.graph.nodes(data=True):
             if attr["active"] and (disable_multiple_activation and not attr["already_spread"]):
-                self.prop_alg.propagate(node, self.graph.neighbors(node))
+                self.prop_alg.propagate(node, list(self.graph.neighbors(node)))
                 self.graph.nodes[node]["already_spread"] = True
 
-    def seed(self) -> None:
-        self.seed_nodes(self.influence_alg.get_seed_nodes())
+    def seed(self, **kwargs) -> None:
+        self.seed_nodes(self.influence_alg.get_seed_nodes(**kwargs))
 
     def seed_node(self, node: str) -> None:
         self.graph.nodes[node]["active"] = True
