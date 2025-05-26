@@ -7,7 +7,7 @@ from simulator_greedy import Simulator
 if __name__ == '__main__':
 
 
-    graph = GraphGenerator.get_collab_graph(Path("../data/collab.txt"))
+    graph = GraphGenerator.get_collab_graph(Path("/home/neusha/Courses/ECE227/ECE227/data/collab.txt"))
     prob = 0.3
     num_timestep = 1000
     num_seeds = 5

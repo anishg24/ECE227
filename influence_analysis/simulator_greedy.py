@@ -1,6 +1,6 @@
 import networkx as nx
 from random import sample
-
+import random
 from propogation import PropagationAlgorithm
 
 class Simulator:
@@ -43,13 +43,14 @@ class Simulator:
     
     def estimate_spread(self, seeds: list[str]) -> int:
         self.seed_nodes(seeds)
+        rng = random.Random(42)
         activated_nodes = set(sorted(seeds))
         time = 1
         while(time<=self.num_timestep and len(activated_nodes)!=self.graph.number_of_nodes):
             newly_activated_nodes = set()
             for node in sorted(activated_nodes):
                 if not self.graph.nodes[node]["already_spread"]:
-                    res_act = self.prop_alg.propagate(node, self.graph.neighbors(node))
+                    res_act = self.prop_alg.propagate(node, self.graph.neighbors(node), rng)
                     self.graph.nodes[node]["already_spread"] = True
                     newly_activated_nodes = newly_activated_nodes.union(set(res_act))
             activated_nodes = activated_nodes.union(newly_activated_nodes)

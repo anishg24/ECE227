@@ -78,7 +78,7 @@ if __name__ == '__main__':
     prop_alg = IndependentCascadeModel(graph, prob)
     simulator = Simulator(graph, None, prop_alg)
 
-    simulator.seed_nodes(['4255', '18612', '24334'] ) # Seed one node manually
+    simulator.seed_nodes(['9937', '4431', '17280', '345', '10514']) # Seed one node manually
     #simulator.seed_random_nodes(num_seeds) # Seed 5 random nodes
     #simulator.seed() # Seed according to the influence algorithm
     print(f"Seeded Nodes: {simulator.get_active_nodes()}")
