@@ -4,9 +4,15 @@ import random
 from typing import List, Tuple
 import networkx as nx
 import tqdm
+import psutil
+import os
 
 import fast_ic as fic
 import numpy as np
+
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / 1024 / 1024  # Convert to MB
 
 class InfluenceAlgorithm(ABC):
     @abstractmethod
@@ -101,8 +107,8 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
         """Cut both parents at the same random point and swap the tails."""
         k = len(parent1)
         cut = random.randint(1, k-1)          # forbid 0 and k (would copy intact)
-        child1 = parent1[:cut] + parent2[cut:]
-        child2 = parent2[:cut] + parent1[cut:]
+        child1 = np.concatenate((parent1[:cut], parent2[cut:]))
+        child2 = np.concatenate((parent2[:cut], parent1[cut:]))
         return child1, child2
 
 
@@ -133,7 +139,7 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
     def evaluate_chromosome(self, chrom):
         """Evaluate a single chromosome by running multiple independent cascade simulations."""
         total = 0
-        chrom = [int(node) for node in chrom]
+        chrom = [node for node in chrom]
         for _ in range(self.GA_params["N_SIM"]):
             total += self.independent_cascade(chrom, self.GA_params["IC_PROB"])
         return total / self.GA_params["N_SIM"]
@@ -142,7 +148,7 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
             self,
             population: List[List[int]],
             num_processes: int = None,
-            fast_independent_cascade: bool = True
+            fast_independent_cascade: bool = False
     ) -> List[float]:
         """
         Compute fitness for every chromosome – expensive step!
@@ -154,18 +160,12 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
             num_processes: Number of processes to use for parallel evaluation. 
                           If None, uses the number of CPU cores.
         """
-        # from multiprocessing import Pool
-
-        # Create process pool and map chromosomes to processes
-        # with Pool(processes=num_processes) as pool:
-        #     # Pair each chromosome with its index
-        #     chromosome_args = list(enumerate(population))
-        #     # Map evaluation function across all chromosomes in parallel
-        #     fitness = pool.map(self.evaluate_chromosome, chromosome_args)
+        print(f"Memory before evaluation: {get_memory_usage():.2f} MB")
         if fast_independent_cascade:
             fitness = [fic.evaluate_chromosome(self.fG, [int(ch) for ch in chrom], self.GA_params["N_SIM"], self.GA_params["IC_PROB"]) for chrom in tqdm.tqdm(population, desc="Evaluating population")]
         else:
             fitness = [self.evaluate_chromosome(chrom) for chrom in tqdm.tqdm(population, desc="Evaluating population")]
+        print(f"Memory after evaluation: {get_memory_usage():.2f} MB")
         return fitness
 
     # Main genetic algorithm
@@ -179,15 +179,21 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
         Args:
             num_processes: Number of processes to use for parallel evaluation.
         """
+        print(f"Initial memory: {get_memory_usage():.2f} MB")
         nodes = list(self.graph.nodes())
+        print(f"Memory after node list: {get_memory_usage():.2f} MB")
 
         # FIXME: initialise population randomly, this could be changed to a more effective one such as centrality based
         population = [np.random.choice(nodes, self.num_seed, replace=False) for _ in range(self.GA_params["POP_SIZE"])]
+        print(f"Memory after population creation: {get_memory_usage():.2f} MB")
 
         best_chrom, best_fit = None, float("-inf")
 
         for gen in range(1, self.GA_params["GENERATIONS"] + 1):
+            print(f"\nGeneration {gen}")
+            print(f"Memory before fitness evaluation: {get_memory_usage():.2f} MB")
             fitness = self.evaluate_population(population, num_processes=num_processes)
+            print(f"Memory after fitness evaluation: {get_memory_usage():.2f} MB")
 
             # record global best
             gen_best_idx = max(range(self.GA_params["POP_SIZE"]), key=lambda i: fitness[i])
@@ -197,6 +203,7 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
             # ---------- elitism: copy ELITE_COUNT fittest unchanged
             elites_idx = sorted(range(self.GA_params["POP_SIZE"]), key=lambda i: fitness[i], reverse=True)[:self.GA_params["ELITE_COUNT"]]
             new_population = [population[i][:] for i in elites_idx]
+            print(f"Memory after elitism: {get_memory_usage():.2f} MB")
 
             # ---------- create offspring until population is full
             while len(new_population) < self.GA_params["POP_SIZE"]:
@@ -215,9 +222,9 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
 
             # trim in case we over-filled (can happen when POP_SIZE is odd)
             population = new_population[:self.GA_params["POP_SIZE"]]
+            print(f"Memory after population update: {get_memory_usage():.2f} MB")
 
             # optional: progress log
-            # if gen % 10 == 0 or gen == 1:
             print(f"Gen {gen:3d}  |  best fitness so far = {best_fit:.2f}")
 
         return best_chrom, best_fit
