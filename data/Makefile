@@ -13,7 +13,7 @@ ALL_DATA = $(SOCIAL_DATA) $(COLLAB_DATA) $(COMM_DATA)
 define data_template
 $(basename $(1)) $(1):
 	@echo "generating $(1)..."
-	@curl -L '$(SNAP_URL)/$(2)' | gunzip > $(1)
+	@curl -L '$(SNAP_URL)/$(2)' | gunzip | awk -f remap.awk > $(1)
 endef
 
 help: ## Prints help for targets with comments
