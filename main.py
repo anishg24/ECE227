@@ -1,7 +1,7 @@
 from influence_analysis.graphs import GraphGenerator
 from influence_analysis.propogation import IndependentCascadeModel
 from influence_analysis.influence_algorithm import DegreeCentralityAlgorithm, EigenVectorCentralityAlgorithm, PageRankCentralityAlgorithm, GreedyAlgorithm
-from influence_analysis.simulator_greedy import Simulator
+from influence_analysis.simulator import Simulator
 
 if __name__ == '__main__':
     graph = GraphGenerator.get_collab_graph()
