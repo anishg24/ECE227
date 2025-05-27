@@ -1,7 +1,7 @@
 import networkx as nx
 from abc import ABC, abstractmethod
 from tqdm import tqdm
-from simulator_greedy import Simulator
+from influence_analysis.simulator_greedy import Simulator
 
 class InfluenceAlgorithm(ABC):
     @abstractmethod

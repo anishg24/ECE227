@@ -1,8 +1,8 @@
 import networkx as nx
 from random import sample
 
-from propogation import PropagationAlgorithm
-from influence_algorithm import InfluenceAlgorithm
+from influence_analysis.propogation import PropagationAlgorithm
+from influence_analysis.influence_algorithm import InfluenceAlgorithm
 
 class Simulator:
     graph: nx.Graph
