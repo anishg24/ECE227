@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Iterable
 import networkx as nx
-from util import RNG
+from random import Random
 
 class PropagationAlgorithm(ABC):
     @abstractmethod
-    def propagate(self, active_node: str, neighbors: list[str] | Iterable[str]) -> None:
+    def propagate(self, active_node: str, neighbors: list[str] | Iterable[str], rng: Random) -> list[str]:
         pass
 
 
@@ -19,7 +19,12 @@ class IndependentCascadeModel(PropagationAlgorithm, ABC):
         self.graph = graph
         self.probability = probability
 
-    def propagate(self, active_node, neighbors) -> None:
+    def propagate(self, active_node, neighbors, rng) -> list[str]:
+        activated = []
         for neighbor in neighbors:
             if not self.graph.nodes[neighbor]["active"]:
-                self.graph.nodes[neighbor]["active"] = RNG.random() < self.probability
+                activation = rng.random() < self.probability
+                self.graph.nodes[neighbor]["active"] = activation
+                if activation:
+                    activated.append(neighbor)
+        return activated
