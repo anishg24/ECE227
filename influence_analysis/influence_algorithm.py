@@ -1,8 +1,9 @@
 import networkx as nx
 from abc import ABC, abstractmethod
 from tqdm import tqdm
+from influence_analysis.simulator import Simulator
 import heapq
-from simulator_greedy import Simulator
+
 
 class InfluenceAlgorithm(ABC):
     @abstractmethod
@@ -30,6 +31,7 @@ class EigenVectorCentralityAlgorithm(InfluenceAlgorithm, ABC):
         centrality = nx.eigenvector_centrality(self.graph, max_iter=10000)  # ensure convergence
         sorted_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)
         self.seed_nodes = [node for node, _ in sorted_nodes[:num_seed]]
+
     def get_seed_nodes(self) -> list[str]:
         return self.seed_nodes
     
@@ -91,6 +93,7 @@ class GreedyAlgorithm(InfluenceAlgorithm, ABC):
         def compute_gain(node):
             trial_seeds = self.seed_nodes + [node]
             gain = self.simulator.estimate_spread(trial_seeds)
+            self.simulator.reset()
             return node, gain
 
         with tqdm(range(self.num_seed), desc="Selecting seed nodes") as t:

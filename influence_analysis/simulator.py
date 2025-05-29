@@ -1,18 +1,16 @@
 import networkx as nx
 from random import sample
-
-from propogation import PropagationAlgorithm
-from influence_algorithm import InfluenceAlgorithm
+import random
+from influence_analysis.propogation import PropagationAlgorithm
 
 class Simulator:
     graph: nx.Graph
-    influence_alg: InfluenceAlgorithm
     prop_alg: PropagationAlgorithm
 
-    def __init__(self, graph: nx.Graph, influence_alg: InfluenceAlgorithm, prop_alg: PropagationAlgorithm):
+    def __init__(self, graph: nx.Graph, prop_alg: PropagationAlgorithm, num_timestep: int):
         self.graph = graph
-        self.influence_alg = influence_alg
         self.prop_alg = prop_alg
+        self.num_timestep = num_timestep
 
         def find_active(node: str) -> bool:
             return self.graph.nodes[node]["active"]
@@ -28,9 +26,29 @@ class Simulator:
             if attr["active"] and (disable_multiple_activation and not attr["already_spread"]):
                 self.prop_alg.propagate(node, self.graph.neighbors(node))
                 self.graph.nodes[node]["already_spread"] = True
-
-    def seed(self) -> None:
-        self.seed_nodes(self.influence_alg.get_seed_nodes())
+    
+    def reset(self) -> None:
+        for node, attr in self.graph.nodes(data=True):
+            self.graph.nodes[node]["already_spread"] = False
+            self.graph.nodes[node]["active"] = False
+    
+    def estimate_spread(self, seeds: list[str]) -> int:
+        self.seed_nodes(seeds)
+        rng = random.Random(227)
+        activated_nodes = set(sorted(seeds))
+        time = 1
+        while time <= self.num_timestep and len(activated_nodes) != self.graph.number_of_nodes:
+            newly_activated_nodes = set()
+            for node in sorted(activated_nodes):
+                if not self.graph.nodes[node]["already_spread"]:
+                    res_act = self.prop_alg.propagate(node, self.graph.neighbors(node), rng)
+                    self.graph.nodes[node]["already_spread"] = True
+                    newly_activated_nodes = newly_activated_nodes.union(set(res_act))
+            activated_nodes = activated_nodes.union(newly_activated_nodes)
+            time += 1
+                
+        num_active_nodes = len(activated_nodes)
+        return num_active_nodes
 
     def seed_node(self, node: str) -> None:
         self.graph.nodes[node]["active"] = True
@@ -59,40 +77,3 @@ class Simulator:
 
     def get_num_inactive_nodes(self) -> int:
         return self.inactive_nodes_view.number_of_nodes()
-
-if __name__ == '__main__':
-    from graphs import GraphGenerator
-    from pathlib import Path
-    from propogation import IndependentCascadeModel
-    from influence_algorithm import DegreeCentralityAlgorithm, EigenVectorCentralityAlgorithm, PageRankCentralityAlgorithm, GreedyAlgorithm
-    from tqdm import tqdm
-
-    graph = GraphGenerator.get_collab_graph(Path("../data/collab.txt"))
-    prob = 0.3
-    num_timestep = 1000
-    num_seeds = 10
-    #influence_algorithm = DegreeCentralityAlgorithm(graph, num_seeds)
-    #influence_algorithm = EigenVectorCentralityAlgorithm(graph, num_seeds)
-    #influence_algorithm = PageRankCentralityAlgorithm(graph, num_seeds)
-    # influence_algorithm = GreedyAlgorithm(graph, num_seeds)
-    prop_alg = IndependentCascadeModel(graph, prob)
-    simulator = Simulator(graph, None, prop_alg)
-
-    simulator.seed_nodes(['9937', '4431', '17280', '345', '10514']) # Seed one node manually
-    #simulator.seed_random_nodes(num_seeds) # Seed 5 random nodes
-    #simulator.seed() # Seed according to the influence algorithm
-    print(f"Seeded Nodes: {simulator.get_active_nodes()}")
-    
-    with tqdm(range(num_timestep), desc="Simulation Timestep") as t:
-        print(f"Starting Simulation")
-        for _ in t:
-            simulator.timestep()
-        print(f"Simulation Complete!")
-        elapsed = t.format_dict['elapsed']
-        print(f"Time: {elapsed:.4f} seconds ({elapsed/num_timestep:.4f} second per timestep)")
-        print()
-
-    print(f"Post-Simulation Results after {num_timestep} time steps")
-    print(f"{simulator.get_num_active_nodes()} nodes activated")
-    print(f"Percent Active: {(simulator.get_num_active_nodes()/graph.number_of_nodes())*100:.2f}%")
-    #print(simulator.get_active_nodes())
