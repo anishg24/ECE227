@@ -1,23 +1,25 @@
 from graphs import GraphGenerator
 from pathlib import Path
 from propogation import IndependentCascadeModel
-from influence_algorithm import DegreeCentralityAlgorithm, EigenVectorCentralityAlgorithm, PageRankCentralityAlgorithm, GreedyAlgorithm
+from influence_algorithm import DegreeCentralityAlgorithm, EigenVectorCentralityAlgorithm, PageRankCentralityAlgorithm, GreedyAlgorithm, CostEffectiveLazyForwardAlgorithm
 from simulator_greedy import Simulator
 
 if __name__ == '__main__':
 
 
-    graph = GraphGenerator.get_collab_graph(Path("/home/neusha/Courses/ECE227/ECE227/data/collab.txt"))
+    graph = GraphGenerator.get_comm_graph(Path("/home/neusha/Courses/ECE227/ECE227/data/collab.txt"))
     prob = 0.3
-    num_timestep = 1000
+    num_timestep = 100
     num_seeds = 5
 
     prop_alg = IndependentCascadeModel(graph, prob)
     simulator = Simulator(graph, prop_alg, num_timestep)
-    influence_algorithm = GreedyAlgorithm(graph, simulator, num_seeds)
+    #influence_algorithm = GreedyAlgorithm(graph, simulator, num_seeds)
+    influence_algorithm = CostEffectiveLazyForwardAlgorithm(graph, simulator, num_seeds)
 
-    influence_algorithm.run()
-    seeds = influence_algorithm.get_seed_nodes()
+    seeds, activated_nodes = influence_algorithm.run()
+
+    # seeds = influence_algorithm.get_seed_nodes()
     num_active_nodes = simulator.estimate_spread(seeds)
     
 

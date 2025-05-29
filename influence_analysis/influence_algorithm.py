@@ -1,6 +1,7 @@
 import networkx as nx
 from abc import ABC, abstractmethod
 from tqdm import tqdm
+import heapq
 from simulator_greedy import Simulator
 
 class InfluenceAlgorithm(ABC):
@@ -58,22 +59,114 @@ class GreedyAlgorithm(InfluenceAlgorithm, ABC):
     def get_seed_nodes(self) -> list[str]:
         return self.seed_nodes
     
+    # def run(self):
+    #     activated_nodes = []
+    #     candidates = set(self.graph.nodes)
+    #     with tqdm(range(self.num_seed), desc="Selecting seed nodes") as t:
+    #         for _ in t:
+    #             best_node = None
+    #             best_gain = -1
+    #             for node in tqdm(candidates - set(self.seed_nodes), leave=False, desc="Evaluating candidates"):
+    #                 trial_seeds = self.seed_nodes + [node]
+    #                 gain = self.simulator.estimate_spread(trial_seeds)
+    #                 if gain > best_gain:
+    #                     best_gain = gain
+    #                     best_node = node
+                
+    #             self.seed_nodes.append(best_node)
+    #             activated_nodes.append(best_gain)
+    #             print(f"\nCurrent Seed Nodes: {self.seed_nodes}")
+    #             print(f"{best_gain} nodes activated")
+    #             print(f"Percent Active: {(best_gain/self.graph.number_of_nodes())*100:.2f}%")
+    #             elapsed = t.format_dict['elapsed']
+    #             elapsed_str = t.format_interval(elapsed)
+    #             print(f"Total elapsed time: {elapsed_str}")
+    #     return self.seed_nodes, activated_nodes
+
     def run(self):
+        from joblib import Parallel, delayed
+        activated_nodes = []
         candidates = set(self.graph.nodes)
-        for _ in tqdm(range(self.num_seed), desc="Selecting seed nodes"):
-            best_node = None
-            best_gain = -1
-            for node in tqdm(candidates - set(self.seed_nodes), leave=False, desc="Evaluating candidates"):
-                trial_seeds = self.seed_nodes + [node]
-                gain = self.simulator.estimate_spread(trial_seeds)
-                if gain > best_gain:
-                    best_gain = gain
-                    best_node = node
-            
-            self.seed_nodes.append(best_node)
-            print(f"Current Seed Nodes: {self.seed_nodes}")
-            print(f"{best_gain} nodes activated")
-            print(f"Percent Active: {(best_gain/self.graph.number_of_nodes())*100:.2f}%")
+
+        def compute_gain(node):
+            trial_seeds = self.seed_nodes + [node]
+            gain = self.simulator.estimate_spread(trial_seeds)
+            return node, gain
+
+        with tqdm(range(self.num_seed), desc="Selecting seed nodes") as t:
+            for _ in t:
+                remaining = list(candidates - set(self.seed_nodes))
+
+                results = Parallel(n_jobs=40)(delayed(compute_gain)(node) for node in tqdm(remaining, leave=False, desc="Evaluating candidates"))
+                best_node, best_gain = max(results, key=lambda x: x[1])
+
+                self.seed_nodes.append(best_node)
+                activated_nodes.append(best_gain)
+
+                print(f"\nCurrent Seed Nodes: {self.seed_nodes}")
+                print(f"{best_gain} nodes activated")
+                print(f"Percent Active: {(best_gain / self.graph.number_of_nodes()) * 100:.2f}%")
+
+                elapsed = t.format_dict['elapsed']
+                elapsed_str = t.format_interval(elapsed)
+                print(f"Total elapsed time: {elapsed_str}")
+
+        return self.seed_nodes, activated_nodes
+
+
+
+class CostEffectiveLazyForwardAlgorithm(InfluenceAlgorithm, ABC):
+    graph: nx.Graph
+    seed_nodes: list[str]
+
+    def __init__(self, graph: nx.Graph, simulator: Simulator, num_seed: int):
+        self.graph = graph
+        self.seed_nodes = []
+        self.simulator = simulator
+        self.num_seed = num_seed
+
+    def get_seed_nodes(self) -> list[str]:
+        return self.seed_nodes
+    
+    def run(self):
+        activated_nodes = []
+        self.seed_nodes = []
+        candidates = set(self.graph.nodes)
+
+        # Step 1: Initialize priority queue with initial marginal gains
+        priority_queue = []
+        base_spread = 0
+        print("Computing initial marginal gains...")
+        for v in tqdm(candidates, desc="Initializing CELF queue"):
+            gain = self.simulator.estimate_spread([v])
+            heapq.heappush(priority_queue, (-gain, v, 0)) 
+
+        with tqdm(range(self.num_seed), desc="Selecting seed nodes") as t:
+            for i in t:
+                while True:
+                    neg_gain, v, last_updated = heapq.heappop(priority_queue)
+
+                    if last_updated == len(self.seed_nodes):
+                        # Gain is valid, select the node
+                        self.seed_nodes.append(v)
+                        new_spread = self.simulator.estimate_spread(self.seed_nodes)
+                        marginal_gain = new_spread - base_spread
+                        base_spread = new_spread
+                        activated_nodes.append(marginal_gain)
+
+                        print(f"\nCurrent Seed Nodes: {self.seed_nodes}")
+                        print(f"{marginal_gain:.2f} new nodes activated")
+                        print(f"Percent Active: {(base_spread / self.graph.number_of_nodes()) * 100:.2f}%")
+
+                        break
+                    else:
+                        # Recompute gain with current seed set
+                        updated_gain = self.simulator.estimate_spread(self.seed_nodes + [v]) - base_spread
+                        heapq.heappush(priority_queue, (-updated_gain, v, len(self.seed_nodes)))
+
+        return self.seed_nodes, activated_nodes
+
+
 
     
 
