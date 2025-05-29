@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from typing import Iterable
-import networkx as nx
 from random import Random
 
 class PropagationAlgorithm(ABC):

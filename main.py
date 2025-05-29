@@ -1,7 +1,7 @@
 from influence_analysis.graphs import GraphGenerator
-from influence_analysis.propogation import IndependentCascadeModel
 from influence_analysis.influence_algorithm import DegreeCentralityAlgorithm, EigenVectorCentralityAlgorithm, PageRankCentralityAlgorithm, GreedyAlgorithm
-from influence_analysis.simulator import Simulator
+
+from graph_tool.dynamics import SIState
 
 if __name__ == '__main__':
     graph = GraphGenerator.get_collab_graph()
@@ -9,16 +9,18 @@ if __name__ == '__main__':
     num_timestep = 1000
     num_seeds = 5
 
-    prop_alg = IndependentCascadeModel(graph, prob)
-    simulator = Simulator(graph, prop_alg, num_timestep)
-    influence_algorithm = GreedyAlgorithm(graph, simulator, num_seeds)
-
+    state = SIState(graph, prob)
+    # state.iterate_sync(niter=num_timestep)
+    # print(state.get_active())
+    influence_algorithm = GreedyAlgorithm(graph, state, num_seeds)
+    #
     influence_algorithm.run()
-    seeds = influence_algorithm.get_seed_nodes()
-    num_active_nodes = simulator.estimate_spread(seeds)
+    # seeds = influence_algorithm.get_seed_nodes()
+    # state.reset_active()
+    # state.set_active(seeds)
+    # num_active_nodes = state.iterate_sync(num_timestep)
     
 
     print(f"Post-Simulation Results after {num_timestep} time steps")
     print(f"{num_active_nodes} nodes activated")
-    print(f"Percent Active: {(num_active_nodes/graph.number_of_nodes())*100:.2f}%")
-    #print(simulator.get_active_nodes())
+    print(f"Percent Active: {(num_active_nodes/graph.get_vertices().size)*100:.2f}%")

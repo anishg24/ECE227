@@ -1,31 +1,30 @@
-import networkx as nx
 from abc import ABC, abstractmethod
 import random
 from typing import List, Tuple
-import networkx as nx
 import tqdm
 import psutil
 import os
+from tqdm import tqdm
+
+from graph_tool import Graph
+from graph_tool.dynamics import SIState
 
 import numpy as np
 
 def get_memory_usage():
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024  # Convert to MB
-from tqdm import tqdm
-from influence_analysis.simulator import Simulator
 
 class InfluenceAlgorithm(ABC):
     @abstractmethod
     def get_seed_nodes(self, **kwargs) -> list[str]:
         pass
 
-
 class DegreeCentralityAlgorithm(InfluenceAlgorithm):
-    graph: nx.Graph
+    graph: Graph
     seed_nodes: list[str]
 
-    def __init__(self, graph: nx.Graph, num_seed: int = None):
+    def __init__(self, graph: Graph, num_seed: int = None):
         self.graph = graph
         self.seed_nodes = list(nx.degree_centrality(self.graph).keys())[:num_seed]
 
@@ -33,10 +32,10 @@ class DegreeCentralityAlgorithm(InfluenceAlgorithm):
         return self.seed_nodes
 
 class EigenVectorCentralityAlgorithm(InfluenceAlgorithm, ABC):
-    graph: nx.Graph
+    graph: Graph
     seed_nodes: list[str]
 
-    def __init__(self, graph: nx.Graph, num_seed: int = None):
+    def __init__(self, graph: Graph, num_seed: int = None):
         self.graph = graph
         centrality = nx.eigenvector_centrality(self.graph, max_iter=10000)  # ensure convergence
         sorted_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)
@@ -46,10 +45,10 @@ class EigenVectorCentralityAlgorithm(InfluenceAlgorithm, ABC):
         return self.seed_nodes
 
 class PageRankCentralityAlgorithm(InfluenceAlgorithm, ABC):
-    graph: nx.Graph
+    graph: Graph
     seed_nodes: list[str]
 
-    def __init__(self, graph: nx.Graph, num_seed: int = None, alpha: float = 0.85):
+    def __init__(self, graph: Graph, num_seed: int = None, alpha: float = 0.85):
         self.graph = graph
         centrality = nx.pagerank(self.graph, alpha=alpha)
         sorted_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)
@@ -59,10 +58,10 @@ class PageRankCentralityAlgorithm(InfluenceAlgorithm, ABC):
         return self.seed_nodes
 
 class GreedyAlgorithm(InfluenceAlgorithm, ABC):
-    graph: nx.Graph
+    graph: Graph
     seed_nodes: list[str]
 
-    def __init__(self, graph: nx.Graph, simulator: Simulator, num_seed: int):
+    def __init__(self, graph: Graph, simulator: SIState, num_seed: int):
         self.graph = graph
         self.seed_nodes = []
         self.simulator = simulator
@@ -72,14 +71,14 @@ class GreedyAlgorithm(InfluenceAlgorithm, ABC):
         return self.seed_nodes
 
     def run(self):
-        candidates = set(self.graph.nodes)
+        candidates = set(self.graph.vertices())
         for _ in tqdm(range(self.num_seed), desc="Selecting seed nodes"):
             best_node = None
             best_gain = -1
             for node in tqdm(candidates - set(self.seed_nodes), leave=False, desc="Evaluating candidates"):
-                trial_seeds = self.seed_nodes + [node]
-                gain = self.simulator.estimate_spread(trial_seeds)
-                self.simulator.reset()
+                self.simulator.set_active(self.seed_nodes + [node])
+                gain = self.simulator.iterate_sync(niter=100)
+                self.simulator.reset_active()
                 if gain > best_gain:
                     best_gain = gain
                     best_node = node
@@ -87,23 +86,15 @@ class GreedyAlgorithm(InfluenceAlgorithm, ABC):
             self.seed_nodes.append(best_node)
             print(f"Current Seed Nodes: {self.seed_nodes}")
             print(f"{best_gain} nodes activated")
-            print(f"Percent Active: {(best_gain/self.graph.number_of_nodes())*100:.2f}%")
-
-
-
-
-
-
-
-
+            print(f"Percent Active: {(best_gain/self.graph.get_vertices().size)*100:.2f}%")
 
 
 class GeneticAlgorithm(InfluenceAlgorithm, ABC):
-    graph: nx.Graph
+    graph: Graph
     seed_nodes: list[str]
     GA_params: dict
 
-    def __init__(self, graph: nx.Graph, num_seed: int, GA_params: dict = None):
+    def __init__(self, graph: Graph, num_seed: int, GA_params: dict = None):
         self.graph = graph
         self.num_seed = num_seed
         if GA_params is None:

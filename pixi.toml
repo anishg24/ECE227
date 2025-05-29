@@ -1,0 +1,15 @@
+[workspace]
+authors = ["Anish Govind <anishg24@gmail.com>"]
+channels = ["conda-forge"]
+name = "project"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+main = "python main.py"
+data = "make -C data all"
+
+[dependencies]
+graph-tool = ">=2.97,<3"
+tqdm = ">=4.67.1,<5"
+psutil = ">=7.0.0,<8"

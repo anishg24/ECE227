@@ -10,3 +10,6 @@ wheels/
 .venv
 *.so
 venv/
+# pixi environments
+.pixi
+*.egg-info
