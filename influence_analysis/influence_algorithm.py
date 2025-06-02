@@ -11,6 +11,9 @@ from graph_tool.dynamics import SIState
 
 import numpy as np
 
+from influence_analysis.simulator import Simulator
+
+
 def get_memory_usage():
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024  # Convert to MB
@@ -61,7 +64,7 @@ class GreedyAlgorithm(InfluenceAlgorithm, ABC):
     graph: Graph
     seed_nodes: list[str]
 
-    def __init__(self, graph: Graph, simulator: SIState, num_seed: int):
+    def __init__(self, graph: Graph, simulator: Simulator, num_seed: int):
         self.graph = graph
         self.seed_nodes = []
         self.simulator = simulator
@@ -76,9 +79,9 @@ class GreedyAlgorithm(InfluenceAlgorithm, ABC):
             best_node = None
             best_gain = -1
             for node in tqdm(candidates - set(self.seed_nodes), leave=False, desc="Evaluating candidates"):
-                self.simulator.set_active(self.seed_nodes + [node])
-                gain = self.simulator.iterate_sync(niter=100)
-                self.simulator.reset_active()
+                seeds = self.seed_nodes + [node]
+                gain = self.simulator.estimate_spread(seeds)
+                self.simulator.reset()
                 if gain > best_gain:
                     best_gain = gain
                     best_node = node

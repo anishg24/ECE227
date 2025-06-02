@@ -1,29 +1,30 @@
 from abc import ABC, abstractmethod
 from typing import Iterable
 from random import Random
+from graph_tool import Graph, VertexPropertyMap
 
 class PropagationAlgorithm(ABC):
     @abstractmethod
-    def propagate(self, active_node: str, neighbors: list[str] | Iterable[str], rng: Random) -> list[str]:
+    def propagate(self, neighbors: Iterable[int], active_property: VertexPropertyMap, rng: Random) -> list[int]:
         pass
 
 
 class IndependentCascadeModel(PropagationAlgorithm, ABC):
-    graph: nx.Graph
+    graph: Graph
     probability: float
 
-    def __init__(self, graph: nx.Graph, probability: float):
+    def __init__(self, graph: Graph, probability: float):
         assert 0. <= probability <= 1.
 
         self.graph = graph
         self.probability = probability
 
-    def propagate(self, active_node, neighbors, rng) -> list[str]:
+    def propagate(self, neighbors, active_property, rng) -> list[int]:
         activated = []
         for neighbor in neighbors:
-            if not self.graph.nodes[neighbor]["active"]:
+            if not active_property[neighbor]:
                 activation = rng.random() < self.probability
-                self.graph.nodes[neighbor]["active"] = activation
+                active_property[neighbor] = activation
                 if activation:
                     activated.append(neighbor)
         return activated
