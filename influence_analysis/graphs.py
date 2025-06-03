@@ -54,7 +54,7 @@ class GraphGenerator:
         return GraphGenerator.get_graph(data, directed=True)
 
     @staticmethod
-    def get_collab_graph(data_file: Path = Path("/home/neusha/Courses/ECE227/ECE227/data/collab.txt"), separator: str = '\t') -> nx.Graph:
+    def get_collab_graph(data_file: Path = Path("data/collab.txt"), separator: str = '\t') -> nx.Graph:
         data = GraphGenerator.read_snap_txt(data_file, separator=separator)
         return GraphGenerator.get_graph(data, directed=False)
 

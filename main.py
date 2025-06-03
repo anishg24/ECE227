@@ -4,7 +4,7 @@ from influence_analysis.influence_algorithm import DegreeCentralityAlgorithm, Ei
 from influence_analysis.simulator import Simulator
 
 if __name__ == '__main__':
-    graph = GraphGenerator.get_collab_graph()
+    graph = GraphGenerator.get_comm_graph()
     # graph = GraphGenerator.get_random_graph(num_nodes=5000)
     prob = 0.3
     num_timestep = 100
