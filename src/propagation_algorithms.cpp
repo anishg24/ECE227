@@ -17,21 +17,16 @@ independent_cascade_algorithm<G>::independent_cascade_algorithm(G& graph, uint8_
 }
 
 template <typename G>
-std::set<typename graph_traits<G>::vertex_descriptor> independent_cascade_algorithm<G>::propagate(
-    typename graph_traits<G>::vertex_descriptor& u,
-    std::pair<typename graph_traits<G>::adjacency_iterator, typename graph_traits<G>::adjacency_iterator> neighbors) {
-    std::set<typename graph_traits<G>::vertex_descriptor> activated;
+void independent_cascade_algorithm<G>::propagate(const typename graph_traits<G>::vertex_descriptor& u) {
     typename graph_traits<G>::adjacency_iterator ni, n_end;
-    for (tie(ni, n_end) = neighbors; ni != n_end; ++ni) {
-        if (!this->graph[*ni].active) {
-            bool random = rand() % 100; // NOLINT(*-msc50-cpp)
-            if (random < this->probability) {
-                this->graph[*ni].active = true;
-                activated.insert(*ni);
+    for (tie(ni, n_end) = adjacent_vertices(u, this->graph); ni != n_end; ++ni) {
+        if (!(this->graph[*ni].active || this->graph[*ni].propagated)) {
+            uint32_t random = this->dist(this->rng);
+            if (random <= this->probability) {
+                this->graph[*ni].propagated = true;
             }
         }
     }
-    return activated;
 }
 
 template class independent_cascade_algorithm<UndirectedGraph>;

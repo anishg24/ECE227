@@ -9,6 +9,7 @@
 #include <boost/graph/adjacency_list.hpp>
 
 #define VERTEX_TYPE uint32_t
+#define RANDOM_SEED 227
 
 using namespace boost;
 
@@ -16,6 +17,7 @@ struct SIProperty {
     VERTEX_TYPE original_id;
     bool active;
     bool already_spread;
+    bool propagated;
 };
 
 typedef adjacency_list<vecS, vecS, undirectedS, SIProperty> UndirectedGraph;

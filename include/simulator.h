@@ -21,7 +21,7 @@ public:
 
     void reset();
 
-    std::set<typename graph_traits<G>::vertex_descriptor> get_active_vertices();
+    std::vector<typename graph_traits<G>::vertex_descriptor> get_active_vertices();
 
     uint32_t simulate(uint32_t n_iter);
 };
