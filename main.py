@@ -5,8 +5,9 @@ from influence_analysis.simulator import Simulator
 
 if __name__ == '__main__':
     graph = GraphGenerator.get_collab_graph()
+    # graph = GraphGenerator.get_random_graph(num_nodes=5000)
     prob = 0.3
-    num_timestep = 1000
+    num_timestep = 100
     num_seeds = 5
 
     prop_alg = IndependentCascadeModel(graph, prob)
@@ -17,6 +18,7 @@ if __name__ == '__main__':
     influence_algorithm.run()
     seeds = influence_algorithm.get_seed_nodes()
     num_active_nodes = simulator.estimate_spread(seeds)
+    simulator.reset()
     
 
     print(f"Post-Simulation Results after {num_timestep} time steps")
