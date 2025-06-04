@@ -38,16 +38,18 @@ void greedy_algorithm<G>::run(uint32_t niter) {
         option::FontStyles{std::vector{FontStyle::bold}}
     };
 
-    float step_size = 1/this->num_seed_nodes;
+    bar.set_progress(0);
+    const float step_size = 1./this->num_seed_nodes;
     for (int i = 0; i < this->num_seed_nodes; i++) {
         typename graph_traits<G>::vertex_descriptor best_vertex;
         uint32_t best_score = 0;
-        // #pragma omp parallel for
+        #pragma omp parallel for num_threads(8)
         for (auto v : candidate_vertices) {
-            this->sim.seed_nodes(this->seed_nodes);
-            this->sim.seed(v);
-            auto gain = this->sim.simulate(niter);
-            this->sim.reset();
+            auto sim = this->sim;
+            sim.seed_nodes(this->seed_nodes);
+            sim.seed(v);
+            auto gain = sim.simulate(niter);
+            sim.reset();
             if (gain >= best_score) {
                 best_vertex = v;
                 best_score = gain;
@@ -55,7 +57,7 @@ void greedy_algorithm<G>::run(uint32_t niter) {
         }
         this->seed_nodes.push_back(best_vertex);
         candidate_vertices.erase(std::remove(candidate_vertices.begin(), candidate_vertices.end(), best_vertex), candidate_vertices.end());
-        bar.set_progress(i + step_size);
+        bar.set_progress((i+1) * step_size);
     }
 }
 

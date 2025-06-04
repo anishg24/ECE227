@@ -10,7 +10,7 @@
 using namespace boost;
 
 int main() {
-    const auto file_path = filesystem::path("./data/collab.txt");
+    const auto file_path = filesystem::path("./data/random.txt");
     UndirectedGraph graph;
     populate_graph(file_path, graph);
     independent_cascade_algorithm prop_alg(graph, 30);

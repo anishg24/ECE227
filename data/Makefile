@@ -7,11 +7,13 @@ COMM_DATA_FILE = email-Enron.txt.gz
 SOCIAL_DATA = social.txt
 COLLAB_DATA = collab.txt
 COMM_DATA = comm.txt
+RANDOM_DATA = random.txt
+SCALE_FREE_DATA = scale_free.txt
 
-ALL_DATA = $(SOCIAL_DATA) $(COLLAB_DATA) $(COMM_DATA)
+ALL_DATA = $(SOCIAL_DATA) $(COLLAB_DATA) $(COMM_DATA) $(RANDOM_DATA) $(SCALE_FREE_DATA)
 
 define data_template
-$(basename $(1)) $(1):
+$(basename $(1)) $(1): remap.awk
 	@echo "generating $(1)..."
 	@curl -L '$(SNAP_URL)/$(2)' | gunzip | awk -f remap.awk > $(1)
 endef
@@ -24,6 +26,11 @@ all: $(ALL_DATA) ## Generate all of the data files
 $(eval $(call data_template,$(SOCIAL_DATA),$(SOCIAL_DATA_FILE)))
 $(eval $(call data_template,$(COLLAB_DATA),$(COLLAB_DATA_FILE)))
 $(eval $(call data_template,$(COMM_DATA),$(COMM_DATA_FILE)))
+
+$(RANDOM_DATA) $(SCALE_FREE_DATA): ./random_graphs.py
+	uv run python random_graphs.py
+	# Don't need to remap
+	# gawk -i inplace -f remap.awk $(RANDOM_DATA) $(SCALE_FREE_DATA)
 
 clean:
 	rm -rf $(ALL_DATA)
