@@ -78,6 +78,21 @@ class GraphGenerator:
     def get_comm_graph(data_file: Path = Path("data/comm.txt"), separator: str = '\t') -> nx.Graph:
         data = GraphGenerator.read_snap_txt(data_file, separator=separator)
         return GraphGenerator.get_graph(data, directed=False)
+    
+    @staticmethod
+    def get_random_graph(num_nodes: int, p: float = 0.005, directed: bool = False) -> nx.Graph:
+        """
+        Generate a deterministic random graph based on number of nodes.
+        Uses Erdos-Renyi model with a fixed seed for reproducibility.
+        """
+        seed = num_nodes
+        if directed:
+            graph = nx.gnp_random_graph(num_nodes, p, seed=seed, directed=True)
+        else:
+            graph = nx.gnp_random_graph(num_nodes, p, seed=seed, directed=False)
+        nx.set_node_attributes(graph, False, "active")
+        nx.set_node_attributes(graph, False, "already_spread")
+        return graph
 
 if __name__ == '__main__':
     social_graph = GraphGenerator.get_social_graph(Path("../data/social.txt"))

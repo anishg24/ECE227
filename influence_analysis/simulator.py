@@ -32,19 +32,22 @@ class Simulator:
             self.graph.nodes[node]["already_spread"] = False
             self.graph.nodes[node]["active"] = False
     
+    
     def estimate_spread(self, seeds: list[str]) -> int:
         self.seed_nodes(seeds)
         rng = random.Random(227)
-        activated_nodes = set(sorted(seeds))
+        activated_nodes = seeds
         time = 1
         while time <= self.num_timestep and len(activated_nodes) != self.graph.number_of_nodes:
-            newly_activated_nodes = set()
-            for node in sorted(activated_nodes):
+            newly_activated_nodes = []
+            for node in activated_nodes:
                 if not self.graph.nodes[node]["already_spread"]:
                     res_act = self.prop_alg.propagate(node, self.graph.neighbors(node), rng)
                     self.graph.nodes[node]["already_spread"] = True
-                    newly_activated_nodes = newly_activated_nodes.union(set(res_act))
-            activated_nodes = activated_nodes.union(newly_activated_nodes)
+                    newly_activated_nodes.extend(res_act)
+            if len(newly_activated_nodes) == 0:
+                break
+            activated_nodes.extend(newly_activated_nodes)
             time += 1
                 
         num_active_nodes = len(activated_nodes)
