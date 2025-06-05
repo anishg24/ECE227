@@ -64,7 +64,7 @@ class GraphGenerator:
         return GraphGenerator.get_graph(data, directed=False)
     
     @staticmethod
-    def get_random_graph(num_nodes: int, p: float = 0.005, directed: bool = False) -> nx.Graph:
+    def get_random_graph(num_nodes: int, p: float = 0.5, directed: bool = False) -> nx.Graph:
         """
         Generate a deterministic random graph based on number of nodes.
         Uses Erdos-Renyi model with a fixed seed for reproducibility.

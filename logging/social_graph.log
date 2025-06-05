@@ -1,0 +1,29 @@
+2025-06-05 18:14:29,549 - INFO - number of trials 100
+2025-06-05 18:14:29,550 - INFO - Computing initial marginal gains...
+2025-06-05 18:18:19,747 - INFO - Selected node 107
+2025-06-05 18:18:19,748 - INFO - Current Seed Nodes: ['107']
+2025-06-05 18:18:19,748 - INFO - 2533.82 new nodes activated
+2025-06-05 18:18:19,748 - INFO - Percent Active: 62.73%
+2025-06-05 18:18:19,748 - INFO - Total elapsed time: 00:03:50
+2025-06-05 18:56:32,422 - INFO - number of trials 100
+2025-06-05 18:56:32,422 - INFO - Computing initial marginal gains...
+2025-06-05 19:00:47,452 - INFO - Selected node 107
+2025-06-05 19:00:47,452 - INFO - Current Seed Nodes: ['107']
+2025-06-05 19:00:47,452 - INFO - 2491.35 new nodes activated
+2025-06-05 19:00:47,452 - INFO - Percent Active: 61.68%
+2025-06-05 19:00:47,452 - INFO - Total elapsed time: 00:04:15
+2025-06-05 19:34:10,944 - INFO - Selected node 0
+2025-06-05 19:34:10,944 - INFO - Current Seed Nodes: ['107', '0']
+2025-06-05 19:34:10,944 - INFO - 265.47 new nodes activated
+2025-06-05 19:34:10,944 - INFO - Percent Active: 68.26%
+2025-06-05 19:34:10,944 - INFO - Total elapsed time: 00:37:38
+2025-06-05 19:42:50,314 - INFO - Selected node 3437
+2025-06-05 19:42:50,314 - INFO - Current Seed Nodes: ['107', '0', '3437']
+2025-06-05 19:42:50,314 - INFO - 209.74 new nodes activated
+2025-06-05 19:42:50,314 - INFO - Percent Active: 73.45%
+2025-06-05 19:42:50,314 - INFO - Total elapsed time: 00:46:17
+2025-06-05 19:52:01,382 - INFO - Selected node 686
+2025-06-05 19:52:01,383 - INFO - Current Seed Nodes: ['107', '0', '3437', '686']
+2025-06-05 19:52:01,383 - INFO - 167.39 new nodes activated
+2025-06-05 19:52:01,383 - INFO - Percent Active: 77.59%
+2025-06-05 19:52:01,383 - INFO - Total elapsed time: 00:55:28
