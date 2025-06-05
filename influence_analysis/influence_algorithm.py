@@ -80,7 +80,7 @@ class GreedyAlgorithm(InfluenceAlgorithm):
 
         def compute_gain(node):
             trial_seeds = self.seed_nodes + [node]
-            gain = self.simulator.estimate_spread(trial_seeds)
+            gain = self.simulator.matrix_sim(trial_seeds)
             self.simulator.reset()
             return node, gain
 

@@ -6,11 +6,11 @@
 {
   # For the first field (FromNodeId)
   if (!($1 in node_map)) {
-    node_map[$1] = ++count
+    node_map[$1] = count++
   }
   # For the second field (ToNodeId)
   if (!($2 in node_map)) {
-    node_map[$2] = ++count
+    node_map[$2] = count++
   }
   # Print the remapped values
   # Ensure to handle cases where a field might be empty (though not expected in this format)

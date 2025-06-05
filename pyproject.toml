@@ -11,6 +11,7 @@ dependencies = [
     "marimo>=0.12.9",
     "matplotlib>=3.10.1",
     "networkx>=3.4.2",
+    "numba>=0.61.2",
     "nx-cugraph-cu12>=25.4.0; os_name == 'posix'",
     "pandas>=2.2.3",
     "pybind11>=2.12.0",
