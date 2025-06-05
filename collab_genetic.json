@@ -1,0 +1,1 @@
+{"runs": [{"timestamp": "2025-06-05T01:15:18.270280", "graph": "collab", "seed_alg": "greedy", "num_timestep": 100, "prop_prob": 0.3, "seeds": [7317, 21543, 23727, 25863, 12295], "seed_alg_duration": 23.788095951080322, "percent_active": "41.19"}]}
