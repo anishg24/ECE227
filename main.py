@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from influence_analysis.graphs import GraphGenerator
 from influence_analysis.propogation import IndependentCascadeModel
 from influence_analysis.influence_algorithm import GreedyAlgorithm, CostEffectiveLazyForwardAlgorithm, GeneticAlgorithm
@@ -6,6 +8,8 @@ from influence_analysis.simulator import Simulator
 from argparse import ArgumentParser
 from enum import Enum
 from time import time
+from pathlib import Path
+import json
 
 class GraphType(Enum):
     SOCIAL = "social"
@@ -27,7 +31,7 @@ class GraphType(Enum):
             return GraphGenerator.get_scale_free_graph()
 
     def __str__(self):
-        return self.value[0]
+        return self.value
 
 class SeedAlgorithm(Enum):
     GREEDY = "greedy"
@@ -43,7 +47,7 @@ class SeedAlgorithm(Enum):
             return GeneticAlgorithm
 
     def __str__(self):
-        return self.value[0]
+        return self.value
 
 if __name__ == '__main__':
 
@@ -96,7 +100,20 @@ if __name__ == '__main__':
         help=f"Algorithm to use for finding seeds. Choices: {[str(x) for x in SeedAlgorithm]}. (default: greedy)"
     )
 
+    parser.add_argument(
+        '-o',
+        '--output',
+        type=Path,
+        default=Path("run.json"),
+        help="Path to output JSON file. Will concatenate result along with timestamp. (default: run.json)"
+    )
+
     args = parser.parse_args()
+
+    if not args.output.is_file():
+        initial_data = {"runs": []}
+        with args.output.open("w") as f:
+            json.dump(initial_data, f)
 
     graph = args.graph_type.get()
     prob = args.prop_prob
@@ -114,8 +131,28 @@ if __name__ == '__main__':
     sim_start_time = time()
     num_active_nodes = simulator.estimate_spread(seeds)
     sim_end_time = time()
+    percent_active = (num_active_nodes/graph.number_of_nodes())*100
+
+    result_dict = {
+        "timestamp": datetime.now().isoformat(),
+        "graph": args.graph_type.value,
+        "seed_alg": args.seed_alg.value,
+        "num_timestep": num_timestep,
+        "prop_prob": prob,
+        "seeds": seeds,
+        "seed_alg_duration": seed_end_time - seed_start_time,
+        "percent_active": f"{percent_active:.2f}",
+    }
+
+    print(result_dict)
+
+    previous_runs = json.loads(args.output.read_text())
+    previous_runs["runs"].append(result_dict)
+
+    with args.output.open("w") as f:
+        json.dump(previous_runs, f)
 
     print(f"Seed Nodes found in {seed_end_time-seed_start_time} seconds: {seeds}")
     print(f"Post-Simulation Results after {num_timestep} time steps")
     print(f"{num_active_nodes} nodes activated in {sim_end_time-sim_start_time} seconds")
-    print(f"Percent Active: {(num_active_nodes/graph.number_of_nodes())*100:.2f}%")
+    print(f"Percent Active: {percent_active:.2f}%")
