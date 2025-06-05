@@ -206,24 +206,35 @@ class CostEffectiveLazyForwardAlgorithm(InfluenceAlgorithm, ABC):
     #     return self.seed_nodes, activated_nodes
 
 
-
-
-
-
-
-
-
-
-
-
 class GeneticAlgorithm(InfluenceAlgorithm, ABC):
     graph: nx.Graph
     seed_nodes: list[str]
     GA_params: dict
 
-    def __init__(self, graph: nx.Graph, num_seed: int, GA_params: dict = None):
+    def __init__(self, graph: nx.Graph, simulator: Simulator, num_seed: int, GA_params: dict = None, memory_trace: bool = False):
+        """
+        Initialize a Genetic Algorithm for influence maximization.
+
+        Parameters
+        ----------
+        graph : nx.Graph
+            The input graph on which to run influence maximization
+        num_seed : int 
+            Number of seed nodes to select
+        GA_params : dict, optional
+            Dictionary of genetic algorithm parameters:
+            - POP_SIZE: Population size (default: 50)
+            - GENERATIONS: Number of generations to run (default: 100) 
+            - ELITE_COUNT: Number of elite solutions to preserve (default: 2)
+            - TOUR_SIZE: Tournament selection size (default: 4)
+            - MUT_RATE: Mutation rate (default: 0.1)
+            - N_SIM: Number of Monte Carlo simulations (default: 100)
+            - IC_PROB: Edge activation probability for IC model (default: 0.05)
+        """
         self.graph = graph
         self.num_seed = num_seed
+        self.simulator = simulator
+        self.memory_trace = memory_trace
         if GA_params is None:
             self.GA_params = {
                 "POP_SIZE": 50,  # population size
@@ -242,52 +253,18 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
             for u, v in self.graph.edges
         ]
 
-        import fast_ic as fic
-
-        self.fG = fic.Graph(edges)
+        try:
+            import fast_ic as fic
+            self.fG = fic.Graph(edges)
+        except ImportError:
+            print("Fast Independent Cascade not found, using Python IC model")
+            self.fG = None
 
         # set random seed for reproducibility
         random.seed(0)
 
-    # FIXME: independent_cascade could use the one previously defined in the project.
-    def independent_cascade(
-        self,
-        seeds: List[int],
-        p: float = 0.1,
-    ) -> int:
-        """
-        One stochastic run of the Independent Cascade model.
-
-        Args
-        ----
-        G     : NetworkX graph.  Edges may carry a 'weight' attribute
-                overriding p for that edge.
-        seeds : Initial active nodes.
-        p     : Default activation probability (used if no weight on edge).
-
-        Returns
-        -------
-        Total number of activated nodes at the end of the cascade.
-        """
-        active = set(seeds)
-        frontier = set(seeds)          # nodes that became active in the last round
-
-        while frontier:
-            new_frontier = set()
-            for u in frontier:
-                for v in self.graph.neighbors(u):
-                    if v in active:          # already active → skip
-                        continue
-                    # Edge-specific probability if present, otherwise default p
-                    prob = self.graph[u][v].get("weight", p)
-                    if random.random() < prob:
-                        active.add(v)
-                        new_frontier.add(v)
-            frontier = new_frontier
-        return len(active)
-
     # ---------------------------------------------------------------------
-    # ---------- 2.  Genetic operators ------------------------------------
+    # -------------  Genetic operators ------------------------------------
     # ---------------------------------------------------------------------
 
     def one_point_crossover(self, parent1: List[int], parent2: List[int]) -> Tuple[List[int], List[int]]:
@@ -320,7 +297,7 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
 
 
     # ---------------------------------------------------------------------
-    # ---------- 4.  GA main loop -----------------------------------------
+    # -------------  GA main loop -----------------------------------------
     # ---------------------------------------------------------------------
 
     def evaluate_chromosome(self, chrom):
@@ -328,14 +305,15 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
         total = 0
         chrom = [node for node in chrom]
         for _ in range(self.GA_params["N_SIM"]):
-            total += self.independent_cascade(chrom, self.GA_params["IC_PROB"])
+            # total += self.independent_cascade(chrom, self.GA_params["IC_PROB"])
+            total += self.simulator.estimate_spread(chrom)
+            self.simulator.reset()
         return total / self.GA_params["N_SIM"]
 
     def evaluate_population(
             self,
             population: List[List[int]],
-            num_processes: int = None,
-            fast_independent_cascade: bool = False
+            # fast_independent_cascade: bool = False
     ) -> List[float]:
         """
         Compute fitness for every chromosome – expensive step!
@@ -344,21 +322,18 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
 
         Args:
             population: List of chromosomes to evaluate
-            num_processes: Number of processes to use for parallel evaluation.
-                          If None, uses the number of CPU cores.
         """
-        print(f"Memory before evaluation: {get_memory_usage():.2f} MB")
-        if fast_independent_cascade:
-            fitness = [fic.evaluate_chromosome(self.fG, [int(ch) for ch in chrom], self.GA_params["N_SIM"], self.GA_params["IC_PROB"]) for chrom in tqdm.tqdm(population, desc="Evaluating population")]
-        else:
-            fitness = [self.evaluate_chromosome(chrom) for chrom in tqdm.tqdm(population, desc="Evaluating population")]
-        print(f"Memory after evaluation: {get_memory_usage():.2f} MB")
+        if self.memory_trace: print(f"Memory before evaluation: {get_memory_usage():.2f} MB")
+        # if fast_independent_cascade:
+        #     fitness = [fic.evaluate_chromosome(self.fG, [int(ch) for ch in chrom], self.GA_params["N_SIM"], self.GA_params["IC_PROB"]) for chrom in tqdm.tqdm(population, desc="Evaluating population")]
+        # else:
+        fitness = Parallel(n_jobs=os.cpu_count()//2)(delayed(self.evaluate_chromosome)(chrom) for chrom in tqdm(population, desc="Evaluating population", leave=False))
+        if self.memory_trace: print(f"Memory after evaluation: {get_memory_usage():.2f} MB")
         return fitness
 
     # Main genetic algorithm
-    def get_seed_nodes(
+    def run(
             self,
-            num_processes: int = 4
     ) -> Tuple[List[int], float]:
         """
         Run the GA and return the best seed set + its fitness.
@@ -366,52 +341,54 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
         Args:
             num_processes: Number of processes to use for parallel evaluation.
         """
-        print(f"Initial memory: {get_memory_usage():.2f} MB")
+        if self.memory_trace: print(f"Initial memory: {get_memory_usage():.2f} MB")
         nodes = list(self.graph.nodes())
-        print(f"Memory after node list: {get_memory_usage():.2f} MB")
+        if self.memory_trace: print(f"Memory after node list: {get_memory_usage():.2f} MB")
 
         # FIXME: initialise population randomly, this could be changed to a more effective one such as centrality based
         population = [np.random.choice(nodes, self.num_seed, replace=False) for _ in range(self.GA_params["POP_SIZE"])]
-        print(f"Memory after population creation: {get_memory_usage():.2f} MB")
+        if self.memory_trace: print(f"Memory after population creation: {get_memory_usage():.2f} MB")
 
         best_chrom, best_fit = None, float("-inf")
+        with tqdm(range(self.GA_params["GENERATIONS"]), desc=f"Running GA", leave=False, postfix=f"best fitness: {best_fit:.2f}") as t:
+            for _ in t:
+                if self.memory_trace: print(f"Memory before fitness evaluation: {get_memory_usage():.2f} MB")
+                fitness = self.evaluate_population(population)
+                if self.memory_trace: print(f"Memory after fitness evaluation: {get_memory_usage():.2f} MB")
 
-        for gen in range(1, self.GA_params["GENERATIONS"] + 1):
-            print(f"\nGeneration {gen}")
-            print(f"Memory before fitness evaluation: {get_memory_usage():.2f} MB")
-            fitness = self.evaluate_population(population, num_processes=num_processes)
-            print(f"Memory after fitness evaluation: {get_memory_usage():.2f} MB")
+                # record global best
+                gen_best_idx = max(range(self.GA_params["POP_SIZE"]), key=lambda i: fitness[i])
+                if fitness[gen_best_idx] > best_fit:
+                    best_chrom, best_fit = population[gen_best_idx][:], fitness[gen_best_idx]
 
-            # record global best
-            gen_best_idx = max(range(self.GA_params["POP_SIZE"]), key=lambda i: fitness[i])
-            if fitness[gen_best_idx] > best_fit:
-                best_chrom, best_fit = population[gen_best_idx][:], fitness[gen_best_idx]
+                # ---------- elitism: copy ELITE_COUNT fittest unchanged
+                elites_idx = sorted(range(self.GA_params["POP_SIZE"]), key=lambda i: fitness[i], reverse=True)[:self.GA_params["ELITE_COUNT"]]
+                new_population = [population[i][:] for i in elites_idx]
+                if self.memory_trace: print(f"Memory after elitism: {get_memory_usage():.2f} MB")
 
-            # ---------- elitism: copy ELITE_COUNT fittest unchanged
-            elites_idx = sorted(range(self.GA_params["POP_SIZE"]), key=lambda i: fitness[i], reverse=True)[:self.GA_params["ELITE_COUNT"]]
-            new_population = [population[i][:] for i in elites_idx]
-            print(f"Memory after elitism: {get_memory_usage():.2f} MB")
+                # ---------- create offspring until population is full
+                while len(new_population) < self.GA_params["POP_SIZE"]:
+                    # parent selection
+                    parent1 = self.tournament_select(population, fitness)
+                    parent2 = self.tournament_select(population, fitness)
 
-            # ---------- create offspring until population is full
-            while len(new_population) < self.GA_params["POP_SIZE"]:
-                # parent selection
-                parent1 = self.tournament_select(population, fitness)
-                parent2 = self.tournament_select(population, fitness)
+                    # crossover (always)
+                    child1, child2 = self.one_point_crossover(parent1, parent2)
 
-                # crossover (always)
-                child1, child2 = self.one_point_crossover(parent1, parent2)
+                    # mutation (always scanned)
+                    self.mutate(child1, nodes, self.GA_params["MUT_RATE"])
+                    self.mutate(child2, nodes, self.GA_params["MUT_RATE"])
 
-                # mutation (always scanned)
-                self.mutate(child1, nodes, self.GA_params["MUT_RATE"])
-                self.mutate(child2, nodes, self.GA_params["MUT_RATE"])
+                    new_population.extend([child1, child2])
 
-                new_population.extend([child1, child2])
+                # trim in case we over-filled (can happen when POP_SIZE is odd)
+                population = new_population[:self.GA_params["POP_SIZE"]]
+                if self.memory_trace: print(f"Memory after population update: {get_memory_usage():.2f} MB")
 
-            # trim in case we over-filled (can happen when POP_SIZE is odd)
-            population = new_population[:self.GA_params["POP_SIZE"]]
-            print(f"Memory after population update: {get_memory_usage():.2f} MB")
-
-            # optional: progress log
-            print(f"Gen {gen:3d}  |  best fitness so far = {best_fit:.2f}")
+                t.set_postfix(best_fit=best_fit)
+                t.update()
 
         return best_chrom, best_fit
+    
+    def get_seed_nodes(self) -> list[int]:
+        return self.seed_nodes
