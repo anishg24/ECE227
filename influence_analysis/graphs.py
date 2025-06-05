@@ -1,11 +1,11 @@
 import networkx as nx
 from pathlib import Path
-from typing import TypeAlias, Any, Callable
+from typing import TypeAlias, Any
 
-SnapData: TypeAlias = dict[str, list[tuple[str, str]] | set[str]]
+SnapData: TypeAlias = dict[int, list[tuple[int, int]] | set[int]]
 
-NodeAttributes: TypeAlias = list[tuple[str, dict[str, Any]]]
-EdgeAttributes: TypeAlias = list[tuple[str, str, dict[str, Any]]]
+NodeAttributes: TypeAlias = list[tuple[int, dict[int, Any]]]
+EdgeAttributes: TypeAlias = list[tuple[int, int, dict[int, Any]]]
 
 class GraphGenerator:
     default_node_attr: dict[str, Any] = {
@@ -31,6 +31,7 @@ class GraphGenerator:
             if line.startswith("#"): # Ignore any comments in the file
                 continue
             from_node, to_node = line.split(separator)
+            from_node, to_node = int(from_node.strip()), int(to_node.strip())
             edges.append((from_node, to_node))
             nodes.add(from_node)
             nodes.add(to_node)
@@ -80,19 +81,14 @@ class GraphGenerator:
         return GraphGenerator.get_graph(data, directed=False)
     
     @staticmethod
-    def get_random_graph(num_nodes: int, p: float = 0.005, directed: bool = False) -> nx.Graph:
-        """
-        Generate a deterministic random graph based on number of nodes.
-        Uses Erdos-Renyi model with a fixed seed for reproducibility.
-        """
-        seed = num_nodes
-        if directed:
-            graph = nx.gnp_random_graph(num_nodes, p, seed=seed, directed=True)
-        else:
-            graph = nx.gnp_random_graph(num_nodes, p, seed=seed, directed=False)
-        nx.set_node_attributes(graph, False, "active")
-        nx.set_node_attributes(graph, False, "already_spread")
-        return graph
+    def get_random_graph(data_file: Path = Path("data/random.txt"), separator: str = '\t') -> nx.Graph:
+        data = GraphGenerator.read_snap_txt(data_file, separator=separator)
+        return GraphGenerator.get_graph(data, directed=False)
+
+    @staticmethod
+    def get_scale_free_graph(data_file: Path = Path("data/scale_free.txt"), separator: str = '\t') -> nx.Graph:
+        data = GraphGenerator.read_snap_txt(data_file, separator=separator)
+        return GraphGenerator.get_graph(data, directed=False)
 
 if __name__ == '__main__':
     social_graph = GraphGenerator.get_social_graph(Path("../data/social.txt"))

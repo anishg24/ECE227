@@ -1,10 +1,10 @@
-import networkx as nx
 from abc import ABC, abstractmethod
 import random
 from typing import List, Tuple
 import networkx as nx
 import tqdm
 import psutil
+from joblib import Parallel, delayed
 import os
 
 import numpy as np
@@ -20,7 +20,7 @@ import os
 
 class InfluenceAlgorithm(ABC):
     @abstractmethod
-    def get_seed_nodes(self, **kwargs) -> list[str]:
+    def get_seed_nodes(self, **kwargs) -> list[int]:
         pass
 
 
@@ -61,9 +61,9 @@ class PageRankCentralityAlgorithm(InfluenceAlgorithm, ABC):
     def get_seed_nodes(self) -> list[str]:
         return self.seed_nodes
 
-class GreedyAlgorithm(InfluenceAlgorithm, ABC):
+class GreedyAlgorithm(InfluenceAlgorithm):
     graph: nx.Graph
-    seed_nodes: list[str]
+    seed_nodes: list[int]
 
     def __init__(self, graph: nx.Graph, simulator: Simulator, num_seed: int):
         self.graph = graph
@@ -71,35 +71,10 @@ class GreedyAlgorithm(InfluenceAlgorithm, ABC):
         self.simulator = simulator
         self.num_seed = num_seed
 
-    def get_seed_nodes(self) -> list[str]:
+    def get_seed_nodes(self) -> list[int]:
         return self.seed_nodes
 
-    # def run(self):
-    #     activated_nodes = []
-    #     candidates = set(self.graph.nodes)
-    #     with tqdm(range(self.num_seed), desc="Selecting seed nodes") as t:
-    #         for _ in t:
-    #             best_node = None
-    #             best_gain = -1
-    #             for node in tqdm(candidates - set(self.seed_nodes), leave=False, desc="Evaluating candidates"):
-    #                 trial_seeds = self.seed_nodes + [node]
-    #                 gain = self.simulator.estimate_spread(trial_seeds)
-    #                 if gain > best_gain:
-    #                     best_gain = gain
-    #                     best_node = node
-
-    #             self.seed_nodes.append(best_node)
-    #             activated_nodes.append(best_gain)
-    #             print(f"\nCurrent Seed Nodes: {self.seed_nodes}")
-    #             print(f"{best_gain} nodes activated")
-    #             print(f"Percent Active: {(best_gain/self.graph.number_of_nodes())*100:.2f}%")
-    #             elapsed = t.format_dict['elapsed']
-    #             elapsed_str = t.format_interval(elapsed)
-    #             print(f"Total elapsed time: {elapsed_str}")
-    #     return self.seed_nodes, activated_nodes
-
     def run(self):
-        from joblib import Parallel, delayed
         activated_nodes = []
         candidates = set(self.graph.nodes)
 
@@ -133,7 +108,7 @@ class GreedyAlgorithm(InfluenceAlgorithm, ABC):
 
 class CostEffectiveLazyForwardAlgorithm(InfluenceAlgorithm, ABC):
     graph: nx.Graph
-    seed_nodes: list[str]
+    seed_nodes: list[int]
 
     def __init__(self, graph: nx.Graph, simulator: Simulator, num_seed: int):
         self.graph = graph
@@ -141,7 +116,7 @@ class CostEffectiveLazyForwardAlgorithm(InfluenceAlgorithm, ABC):
         self.simulator = simulator
         self.num_seed = num_seed
 
-    def get_seed_nodes(self) -> list[str]:
+    def get_seed_nodes(self) -> list[int]:
         return self.seed_nodes
 
     def run(self):
