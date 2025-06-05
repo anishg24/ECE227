@@ -7,10 +7,10 @@ class Simulator:
     graph: nx.Graph
     prop_alg: PropagationAlgorithm
 
-    def __init__(self, graph: nx.Graph, prop_alg: PropagationAlgorithm, num_timestep: int):
+    def __init__(self, graph: nx.Graph, prop_alg: PropagationAlgorithm):
         self.graph = graph
         self.prop_alg = prop_alg
-        self.num_timestep = num_timestep
+        # self.num_timestep = num_timestep
 
         def find_active(node: str) -> bool:
             return self.graph.nodes[node]["active"]
@@ -28,26 +28,35 @@ class Simulator:
                 self.graph.nodes[node]["already_spread"] = True
     
     def reset(self) -> None:
-        for node, attr in self.graph.nodes(data=True):
+        for node in self.graph.nodes():
             self.graph.nodes[node]["already_spread"] = False
             self.graph.nodes[node]["active"] = False
-    
+
+    def average_spread(self, seeds: list[str], num_trials: int = 40) -> float:
+        total = 0.0
+        for trial in range(num_trials):
+            self.reset()
+            spread = self.estimate_spread(seeds)
+            total += spread
+        return total / num_trials
+
     
     def estimate_spread(self, seeds: list[int]) -> int:
         self.seed_nodes(seeds)
-        rng = random.Random(227)
-        activated_nodes = seeds.copy()
+        # rng = random.Random(227)
+        activated_nodes = set(seeds.copy())
+
         time = 1
-        while time <= self.num_timestep and len(activated_nodes) != self.graph.number_of_nodes:
-            newly_activated_nodes = []
+        while len(activated_nodes) != self.graph.number_of_nodes():
+            newly_activated_nodes = set()
             for node in activated_nodes:
                 if not self.graph.nodes[node]["already_spread"]:
-                    res_act = self.prop_alg.propagate(node, self.graph.neighbors(node), rng)
+                    res_act = self.prop_alg.propagate(node, self.graph.neighbors(node))
                     self.graph.nodes[node]["already_spread"] = True
-                    newly_activated_nodes.extend(res_act)
-            if len(newly_activated_nodes) == 0:
+                    newly_activated_nodes.update(res_act)
+            if not newly_activated_nodes:
                 break
-            activated_nodes.extend(newly_activated_nodes)
+            activated_nodes.update(newly_activated_nodes)
             time += 1
                 
         num_active_nodes = len(activated_nodes)

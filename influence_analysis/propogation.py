@@ -18,13 +18,13 @@ class IndependentCascadeModel(PropagationAlgorithm, ABC):
 
         self.graph = graph
         self.probability = probability
+        self.rng = Random(227)
 
-    def propagate(self, active_node, neighbors, rng) -> list[str]:
+    def propagate(self, active_node, neighbors) -> list[str]:
         activated = []
         for neighbor in neighbors:
             if not self.graph.nodes[neighbor]["active"]:
-                activation = rng.random() < self.probability
-                self.graph.nodes[neighbor]["active"] = activation
-                if activation:
+                if self.rng.random() < self.probability:
+                    self.graph.nodes[neighbor]["active"] = True
                     activated.append(neighbor)
         return activated

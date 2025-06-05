@@ -1,6 +1,6 @@
 SNAP_URL = https://snap.stanford.edu/data
 
-SOCIAL_DATA_FILE = twitter_combined.txt.gz
+SOCIAL_DATA_FILE = facebook_combined.txt.gz
 COLLAB_DATA_FILE = ca-GrQc.txt.gz
 COMM_DATA_FILE = email-Enron.txt.gz
 
