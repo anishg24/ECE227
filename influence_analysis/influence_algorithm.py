@@ -209,7 +209,7 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
         if GA_params is None:
             self.GA_params = {
                 "POP_SIZE": 50,  # population size
-                "GENERATIONS": 100,  # number of generations
+                "GENERATIONS": 10,  # number of generations
                 "ELITE_COUNT": 2,  # number of elites
                 "TOUR_SIZE": 4,  # tournament size
                 "MUT_RATE": 0.1,  # mutation rate
@@ -359,7 +359,9 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
                 t.set_postfix(best_fit=best_fit)
                 t.update()
 
+        self.seed_nodes = best_chrom
+        self.fitness_score = best_fit
         return best_chrom, best_fit
 
     def get_seed_nodes(self) -> list[int]:
-        return self.seed_nodes
+        return self.seed_nodes.tolist()
