@@ -120,7 +120,7 @@ if __name__ == '__main__':
     num_timestep = args.num_timesteps
     num_seeds = args.num_seeds
     prop_alg = IndependentCascadeModel(graph, prob)
-    simulator = Simulator(graph, prop_alg, num_timestep)
+    simulator = Simulator(graph, prop_alg)
     seed_alg = args.seed_alg.get()(graph, simulator, num_seeds) # This might have to change if we use genetic
     seed_start_time = time()
     seed_alg.run()

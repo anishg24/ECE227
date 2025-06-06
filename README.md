@@ -16,8 +16,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
 
 To grab the data:
 ```bash
-cd data
-make all
+make -C data all
 ```
 
 This will generate a `social.txt`, `comm.txt`, and `collab.txt` in the `data/` directory.
