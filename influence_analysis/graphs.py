@@ -66,7 +66,7 @@ class GraphGenerator:
         return graph
 
     @staticmethod
-    def get_social_graph(data_file: Path = Path("data/social.txt"), separator: str = ' ') -> nx.Graph:
+    def get_social_graph(data_file: Path = Path("data/social.txt"), separator: str = '\t') -> nx.Graph:
         data = GraphGenerator.read_snap_txt(data_file, separator=separator)
         return GraphGenerator.get_graph(data, directed=True)
 

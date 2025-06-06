@@ -107,7 +107,7 @@ class GreedyAlgorithm(InfluenceAlgorithm):
 
 
 
-class CostEffectiveLazyForwardAlgorithm(InfluenceAlgorithm, ABC):
+class CostEffectiveLazyForwardAlgorithm(InfluenceAlgorithm):
     graph: nx.Graph
     seed_nodes: list[int]
 
@@ -120,15 +120,13 @@ class CostEffectiveLazyForwardAlgorithm(InfluenceAlgorithm, ABC):
     def get_seed_nodes(self) -> list[int]:
         return self.seed_nodes
     
-    def run(self, logger, num_trials):
+    def run(self, num_trials=20):
         start_time = time.time()
         activated_nodes = []
         self.seed_nodes = []
         candidates = set(self.graph.nodes)
         priority_queue = []
         base_spread = 0
-
-        logger.info("Computing initial marginal gains...")
 
         def compute_gain(v):
             gain = self.simulator.average_spread([v], num_trials)
@@ -150,14 +148,10 @@ class CostEffectiveLazyForwardAlgorithm(InfluenceAlgorithm, ABC):
                         base_spread = new_spread
                         activated_nodes.append(marginal_gain)
 
-                        logger.info(f"Selected node {v}")
-                        logger.info(f"Current Seed Nodes: {self.seed_nodes}")
-                        logger.info(f"{marginal_gain:.2f} new nodes activated")
-                        logger.info(f"Percent Active: {(base_spread / self.graph.number_of_nodes()) * 100:.2f}%")
+
 
                         elapsed = time.time() - start_time
                         elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
-                        logger.info(f"Total elapsed time: {elapsed_str}")
                         break
                     else:
                         updated_gain = self.simulator.average_spread(self.seed_nodes.copy() + [v], num_trials) - base_spread
@@ -165,16 +159,6 @@ class CostEffectiveLazyForwardAlgorithm(InfluenceAlgorithm, ABC):
 
 
         return self.seed_nodes, activated_nodes
-    
-
-
-
-
-
-
-
-
-    #     return self.seed_nodes, activated_nodes
 
 
 class GeneticAlgorithm(InfluenceAlgorithm, ABC):
