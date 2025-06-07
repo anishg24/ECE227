@@ -3,6 +3,7 @@ from random import sample
 import random
 from influence_analysis.propogation import PropagationAlgorithm
 
+
 class Simulator:
     graph: nx.Graph
     prop_alg: PropagationAlgorithm

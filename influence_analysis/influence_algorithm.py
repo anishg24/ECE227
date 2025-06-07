@@ -18,6 +18,8 @@ import heapq
 from joblib import Parallel, delayed
 import os
 import time
+from influence_analysis.matrix_sim import matrix_sim_torch
+
 
 class InfluenceAlgorithm(ABC):
     @abstractmethod
@@ -282,7 +284,7 @@ class GeneticAlgorithm(InfluenceAlgorithm, ABC):
         # if fast_independent_cascade:
         #     fitness = [fic.evaluate_chromosome(self.fG, [int(ch) for ch in chrom], self.GA_params["N_SIM"], self.GA_params["IC_PROB"]) for chrom in tqdm.tqdm(population, desc="Evaluating population")]
         # else:
-        fitness = Parallel(n_jobs=os.cpu_count()//2)(delayed(self.evaluate_chromosome)(chrom) for chrom in tqdm(population, desc="Evaluating population", leave=False))
+        fitness = Parallel(n_jobs=os.cpu_count()//2)(delayed(matrix_sim_torch)(self.graph, chrom, self.GA_params["N_SIM"], self.GA_params["IC_PROB"]) for chrom in tqdm(population, desc="Evaluating population", leave=False))
         if self.memory_trace: print(f"Memory after evaluation: {get_memory_usage():.2f} MB")
         return fitness
 
